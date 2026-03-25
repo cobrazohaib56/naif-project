@@ -1,9 +1,44 @@
 import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { supabase } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
 
+const useSecureCookies =
+  process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
+
+const crossSiteCookies: NextAuthConfig["cookies"] = {
+  sessionToken: {
+    name: `__Secure-next-auth.session-token`,
+    options: {
+      httpOnly: true,
+      sameSite: "none" as const,
+      path: "/",
+      secure: true,
+    },
+  },
+  callbackUrl: {
+    name: `__Secure-next-auth.callback-url`,
+    options: {
+      httpOnly: true,
+      sameSite: "none" as const,
+      path: "/",
+      secure: true,
+    },
+  },
+  csrfToken: {
+    name: `__Secure-next-auth.csrf-token`,
+    options: {
+      httpOnly: false,
+      sameSite: "none" as const,
+      path: "/",
+      secure: true,
+    },
+  },
+};
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: "credentials",
@@ -60,4 +95,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
+  ...(useSecureCookies && { cookies: crossSiteCookies }),
 });
