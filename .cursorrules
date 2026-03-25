@@ -1,0 +1,11 @@
+# AI Study Companion — Project rules
+
+## Project structure (do not change)
+- **Backend** is at the project root: `pixel-perfect-backend/` (Next.js API, port 3001).
+- **Frontend** is at the project root: `pixel-perfect-frontend/` (Vite + React, port 5173).
+- These two folders are **siblings**. Never create or move the backend inside the frontend folder.
+- See `docs/PROJECT_STRUCTURE.md` for the canonical layout.
+
+## Paths in documentation
+- When referring to the backend, use `pixel-perfect-backend` (not `pixel-perfect-frontend/pixel-perfect-backend`).
+- When referring to the frontend, use `pixel-perfect-frontend`.
