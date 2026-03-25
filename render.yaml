@@ -27,7 +27,7 @@ services:
 
   - type: web
     name: naif-frontend
-    runtime: static
+    env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
