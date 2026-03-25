@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ["pdf-parse", "bcryptjs"],
-  },
+  serverExternalPackages: ["pdf-parse", "bcryptjs"],
   async headers() {
     return [
       {
