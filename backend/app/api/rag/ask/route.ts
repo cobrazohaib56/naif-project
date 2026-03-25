@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       embedding = await embedText(question);
     } catch (e) {
       return NextResponse.json(
-        { error: "Embedding service unavailable. Ensure Ollama is running with nomic-embed-text." },
+        { error: "Embedding service unavailable. Check that HUGGINGFACE_API_KEY is set and the embedding model is accessible." },
         { status: 503 }
       );
     }
@@ -49,7 +49,8 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("match_rag_chunks RPC error:", error.message);
+      return NextResponse.json({ error: "Failed to search knowledge base" }, { status: 500 });
     }
 
     let chunkList = (chunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[];
@@ -100,8 +101,9 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
+    console.error("RAG ask error:", e instanceof Error ? e.message : e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "RAG ask failed" },
+      { error: "RAG ask failed" },
       { status: 500 }
     );
   }

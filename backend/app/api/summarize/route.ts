@@ -67,12 +67,13 @@ export async function POST(request: Request) {
     }
 
     if (documentId) {
-      await supabase.from("summaries").insert({
+      const { error: insertErr } = await supabase.from("summaries").insert({
         document_id: documentId,
         summary_text: summaryText,
         key_concepts: keyConcepts,
         status: "completed",
       });
+      if (insertErr) console.error("Failed to save summary:", insertErr.message);
     }
 
     return NextResponse.json({
@@ -81,8 +82,9 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
+    console.error("Summarize error:", e instanceof Error ? e.message : e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Summarization failed" },
+      { error: "Summarization failed" },
       { status: 500 }
     );
   }

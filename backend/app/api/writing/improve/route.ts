@@ -43,12 +43,13 @@ export async function POST(request: Request) {
       improvedText = response.trim() || originalText;
     }
 
-    await supabase.from("writing_sessions").insert({
+    const { error: insertErr } = await supabase.from("writing_sessions").insert({
       user_id: userId,
       original_text: originalText,
       improved_text: improvedText,
       improvement_metadata: { suggestions },
     });
+    if (insertErr) console.error("Failed to save writing session:", insertErr.message);
 
     return NextResponse.json({
       improvedText,
@@ -62,8 +63,9 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
+    console.error("Writing improve error:", e instanceof Error ? e.message : e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Writing improvement failed" },
+      { error: "Writing improvement failed" },
       { status: 500 }
     );
   }

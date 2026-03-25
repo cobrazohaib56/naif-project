@@ -20,7 +20,7 @@ function moderateResponse(text: string): string {
 
 export async function callLlm(systemPrompt: string, userMessage: string): Promise<string> {
   if (!HF_API_KEY) {
-    throw new Error("HUGGINGFACE_API_KEY is not set. Please add it to your .env.local file.");
+    throw new Error("HUGGINGFACE_API_KEY is not configured.");
   }
   const response = await callHuggingFace(systemPrompt, userMessage);
   return moderateResponse(response);

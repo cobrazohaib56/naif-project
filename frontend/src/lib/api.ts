@@ -90,7 +90,13 @@ export const api = {
   },
 
   async signOut() {
-    await fetchWithCredentials("/api/auth/signout", { method: "POST" });
+    const csrfRes = await fetchWithCredentials("/api/auth/csrf");
+    const { csrfToken } = await csrfRes.json().catch(() => ({ csrfToken: "" }));
+    await fetchWithCredentials("/api/auth/signout", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ csrfToken: csrfToken || "", json: "true" }),
+    });
   },
 
   // Notes

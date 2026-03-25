@@ -5,7 +5,7 @@ const EMBED_DIM = 384; // all-MiniLM-L6-v2 produces 384-dim vectors; must match 
 
 export async function embedText(text: string): Promise<number[]> {
   if (!HF_API_KEY) {
-    throw new Error("HUGGINGFACE_API_KEY is not set. Please add it to your .env.local file.");
+    throw new Error("HUGGINGFACE_API_KEY is not configured.");
   }
   return embedHuggingFace(text);
 }
