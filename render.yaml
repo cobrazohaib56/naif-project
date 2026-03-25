@@ -1,6 +1,7 @@
 services:
   - type: web
     name: naif-backend
+    plan: free 
     runtime: node
     rootDir: backend
     buildCommand: npm install && npm run build
@@ -27,6 +28,7 @@ services:
 
   - type: web
     name: naif-frontend
+    plan: free 
     env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
