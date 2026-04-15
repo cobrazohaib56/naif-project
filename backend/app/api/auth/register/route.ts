@@ -4,12 +4,8 @@ import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 import { sendWelcomeEmail } from "@/lib/email";
 
-const UNITEN_EMAIL_REGEX = /@uniten\.edu\.my$/i;
-
 const registerSchema = z.object({
-  email: z.string().email().refine((e) => UNITEN_EMAIL_REGEX.test(e), {
-    message: "Only UNITEN email (@uniten.edu.my) is allowed",
-  }),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().min(1).optional(),
 });

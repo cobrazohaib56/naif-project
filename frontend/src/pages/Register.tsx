@@ -39,7 +39,7 @@ export default function Register() {
             </div>
           </div>
           <CardTitle className="text-2xl">Create account</CardTitle>
-          <CardDescription>Use your UNITEN email (@uniten.edu.my)</CardDescription>
+          <CardDescription>Create your AI Study Companion account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -64,7 +64,7 @@ export default function Register() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@uniten.edu.my"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

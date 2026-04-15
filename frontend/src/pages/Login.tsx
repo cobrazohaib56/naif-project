@@ -43,7 +43,7 @@ export default function Login() {
             </div>
           </div>
           <CardTitle className="text-2xl">UNITEN AI Study Companion</CardTitle>
-          <CardDescription>Sign in with your UNITEN email</CardDescription>
+          <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,7 +57,7 @@ export default function Login() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@uniten.edu.my"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
