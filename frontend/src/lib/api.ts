@@ -50,6 +50,7 @@ export async function fetchWithCredentials(
 }
 
 export const api = {
+  // ── Auth ──────────────────────────────────────────────────────────────
   async getSession(): Promise<{ user: { id?: string; email?: string | null; name?: string | null; role?: string } } | null> {
     const res = await fetchWithCredentials("/api/auth/session");
     if (!res.ok) return null;
@@ -83,7 +84,6 @@ export const api = {
       const data = await res.json().catch(() => ({}));
       throw new Error((data as { error?: string }).error || "Invalid email or password");
     }
-    // NextAuth returns 302 → browser follows to GET / which returns 200 HTML; avoid parsing HTML as JSON
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) return res.json();
     return {} as { url?: string };
@@ -99,7 +99,37 @@ export const api = {
     });
   },
 
-  // Notes
+  async forgotPassword(email: string) {
+    const res = await fetchWithCredentials("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  async resetPassword(token: string, password: string) {
+    const res = await fetchWithCredentials("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  // ── User Profile ─────────────────────────────────────────────────────
+  async getProfile() {
+    const res = await fetchWithCredentials("/api/user/profile");
+    return handleResponse<{ id: string; email: string; name: string | null; role: string; created_at: string }>(res);
+  },
+
+  async updateProfile(updates: { name?: string }) {
+    const res = await fetchWithCredentials("/api/user/profile", {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+    return handleResponse<{ id: string; email: string; name: string | null; role: string; created_at: string }>(res);
+  },
+
+  // ── Notes ────────────────────────────────────────────────────────────
   async getNotes() {
     const res = await fetchWithCredentials("/api/notes");
     return handleResponse<{ id: string; name: string; date: string; fileType: string; summarized: boolean }[]>(res);
@@ -128,6 +158,11 @@ export const api = {
     return handleResponse<{ id: string; file_name: string; file_path: string }>(res);
   },
 
+  async deleteNote(id: string) {
+    const res = await fetchWithCredentials(`/api/notes/${id}`, { method: "DELETE" });
+    return handleResponse<{ message: string }>(res);
+  },
+
   async summarize(documentId?: string, documentText?: string) {
     const res = await fetchWithCredentials("/api/summarize", {
       method: "POST",
@@ -144,7 +179,7 @@ export const api = {
     return handleResponse<{ answer: string; pageReferences: { documentTitle: string; snippet: string }[] }>(res);
   },
 
-  // RAG
+  // ── RAG ──────────────────────────────────────────────────────────────
   async askRag(question: string, courseFilter?: string) {
     const res = await fetchWithCredentials("/api/rag/ask", {
       method: "POST",
@@ -153,7 +188,7 @@ export const api = {
     return handleResponse<{ answer: string; sources: { documentId: string; documentTitle: string; pageNumber?: number; relevantText?: string }[] }>(res);
   },
 
-  // Writing
+  // ── Writing ──────────────────────────────────────────────────────────
   async improveWriting(originalText: string) {
     const res = await fetchWithCredentials("/api/writing/improve", {
       method: "POST",
@@ -165,7 +200,7 @@ export const api = {
     }>(res);
   },
 
-  // Quizzes
+  // ── Quizzes ──────────────────────────────────────────────────────────
   async getQuizzes(admin = false) {
     const res = await fetchWithCredentials(`/api/quiz${admin ? "?admin=true" : ""}`);
     return handleResponse<{ id: string; title: string; description?: string; is_active: boolean; time_limit_minutes?: number; questions: number }[]>(res);
@@ -226,10 +261,10 @@ export const api = {
     return handleResponse<{ attemptId: string; score: number; total: number; percentage: number }>(res);
   },
 
-  async generateQuiz(documentId?: string, documentText?: string, numQuestions = 10, questionType: "mcq" | "short" = "mcq") {
+  async generateQuiz(documentText: string, numQuestions = 10, questionType: "mcq" | "short" = "mcq") {
     const res = await fetchWithCredentials("/api/quiz/generate", {
       method: "POST",
-      body: JSON.stringify({ documentId, documentText, numQuestions, questionType }),
+      body: JSON.stringify({ documentText, numQuestions, questionType }),
     });
     return handleResponse<{ questions: { questionText: string; options: string[]; correctAnswer: string; type: string; order_index: number }[] }>(res);
   },
@@ -250,7 +285,14 @@ export const api = {
     return handleResponse<{ success: boolean }>(res);
   },
 
-  // Tasks
+  async deleteQuestion(quizId: string, questionId: string) {
+    const res = await fetchWithCredentials(`/api/quiz/${quizId}/questions?questionId=${questionId}`, {
+      method: "DELETE",
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  // ── Tasks ────────────────────────────────────────────────────────────
   async getTasks() {
     const res = await fetchWithCredentials("/api/tasks");
     return handleResponse<{ id: string; title: string; description?: string; due_date: string; priority: string; is_completed: boolean; reminder_time?: string }[]>(res);
@@ -277,7 +319,7 @@ export const api = {
     return handleResponse(res);
   },
 
-  // Admin
+  // ── Admin ────────────────────────────────────────────────────────────
   async getAdminAnalytics() {
     const res = await fetchWithCredentials("/api/admin/analytics");
     return handleResponse<{ totalStudents: number; totalDocuments: number; activeQuizzes: number; ragDocumentsIndexed: number }>(res);
@@ -313,6 +355,14 @@ export const api = {
       body: form,
     });
     return handleResponse<{ status: string; documentId: string; chunksIndexed: number }>(res);
+  },
+
+  async sendAdminEmail(to: string, subject: string, body: string) {
+    const res = await fetchWithCredentials("/api/admin/email", {
+      method: "POST",
+      body: JSON.stringify({ to, subject, body }),
+    });
+    return handleResponse<{ message: string }>(res);
   },
 };
 

@@ -58,3 +58,52 @@ export async function GET(
     return NextResponse.json({ error: "Failed to get document" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireAuth();
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const { data: doc, error } = await supabase
+      .from("documents")
+      .select("id, file_path")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .single();
+
+    if (error || !doc) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    // Delete from storage
+    if (doc.file_path) {
+      await supabase.storage.from("documents").remove([doc.file_path]);
+    }
+
+    // Summaries cascade-delete via FK, but delete explicitly for clarity
+    await supabase.from("summaries").delete().eq("document_id", id);
+
+    // Delete the document row
+    const { error: deleteErr } = await supabase
+      .from("documents")
+      .delete()
+      .eq("id", id);
+
+    if (deleteErr) {
+      return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: "Document deleted" });
+  } catch (e) {
+    if (e instanceof Response) return e;
+    return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
+  }
+}

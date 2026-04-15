@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Copy, Download, FileText, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, FileText, Send, Sparkles, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
 const NoteDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [chatInput, setChatInput] = useState("");
   const [chatHistory, setChatHistory] = useState<{ role: "user" | "ai"; content: string; pageRef?: string }[]>([]);
   const queryClient = useQueryClient();
@@ -28,6 +29,16 @@ const NoteDetail = () => {
       toast.success("Summary generated");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Summarization failed"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.deleteNote(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      toast.success("Note deleted");
+      navigate("/notes");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
 
   const handleAskDocument = async () => {
@@ -53,8 +64,14 @@ const NoteDetail = () => {
     }
   };
 
+  const handleDelete = () => {
+    if (window.confirm("Delete this document? This will also remove its summary. This cannot be undone.")) {
+      deleteMutation.mutate();
+    }
+  };
+
   if (!id) return null;
-  if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
+  if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
   if (error || !note) return <p className="text-destructive">Document not found.</p>;
 
   const summaryPoints = note.summary
@@ -68,18 +85,30 @@ const NoteDetail = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      <div className="flex items-center gap-3">
-        <Link to="/notes">
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">{note.file_name}</h1>
-          <p className="text-sm text-muted-foreground">
-            Uploaded {formatDate(note.upload_date)}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link to="/notes">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">{note.file_name}</h1>
+            <p className="text-sm text-muted-foreground">
+              Uploaded {formatDate(note.upload_date)}
+            </p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 text-destructive hover:text-destructive"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+        >
+          <Trash2 className="h-4 w-4" />
+          {deleteMutation.isPending ? "Deleting..." : "Delete"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -139,7 +168,7 @@ const NoteDetail = () => {
                       className="gap-2"
                     >
                       <Sparkles className="h-4 w-4" />
-                      {summarizeMutation.isPending ? "Generating…" : "Generate Summary"}
+                      {summarizeMutation.isPending ? "Generating..." : "Generate Summary"}
                     </Button>
                   </div>
                 ) : (
@@ -175,7 +204,7 @@ const NoteDetail = () => {
                   <div className="flex-1 overflow-y-auto space-y-2 mb-3">
                     {chatHistory.length === 0 ? (
                       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                        Ask questions about this document…
+                        Ask questions about this document...
                       </div>
                     ) : (
                       chatHistory.map((msg, i) => (
@@ -184,7 +213,7 @@ const NoteDetail = () => {
                           className={`text-sm p-3 rounded-lg ${msg.role === "user" ? "bg-primary/10 ml-8" : "bg-muted mr-8"}`}
                         >
                           <p className="whitespace-pre-wrap">{msg.content}</p>
-                          {msg.pageRef && <p className="text-xs text-muted-foreground mt-1">— {msg.pageRef}</p>}
+                          {msg.pageRef && <p className="text-xs text-muted-foreground mt-1">&mdash; {msg.pageRef}</p>}
                         </div>
                       ))
                     )}

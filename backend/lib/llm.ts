@@ -1,5 +1,6 @@
-const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
-const HF_MODEL = process.env.HUGGINGFACE_LLM_MODEL || "mistralai/Mistral-7B-Instruct-v0.2";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const UNSAFE_PATTERNS = [
   /\b(hack|exploit|attack|malware|virus|weapon|bomb|kill|suicide|self[- ]?harm)\b/i,
@@ -19,33 +20,21 @@ function moderateResponse(text: string): string {
 }
 
 export async function callLlm(systemPrompt: string, userMessage: string): Promise<string> {
-  if (!HF_API_KEY) {
-    throw new Error("HUGGINGFACE_API_KEY is not configured.");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured.");
   }
-  const response = await callHuggingFace(systemPrompt, userMessage);
+  const response = await callGemini(systemPrompt, userMessage);
   return moderateResponse(response);
 }
 
-async function callHuggingFace(systemPrompt: string, userMessage: string): Promise<string> {
-  const res = await fetch(
-    `https://api-inference.huggingface.co/models/${HF_MODEL}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: `${systemPrompt}\n\n${userMessage}`,
-        parameters: { max_new_tokens: 2048, return_full_text: false },
-      }),
-    }
-  );
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || `HuggingFace error: ${res.status}`);
-  }
-  const data = (await res.json()) as { generated_text?: string } | { generated_text?: string }[];
-  const out = Array.isArray(data) ? data[0] : data;
-  return out?.generated_text?.trim() ?? "";
+async function callGemini(systemPrompt: string, userMessage: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction: systemPrompt,
+  });
+
+  const result = await model.generateContent(userMessage);
+  const text = result.response.text();
+  return text?.trim() ?? "";
 }

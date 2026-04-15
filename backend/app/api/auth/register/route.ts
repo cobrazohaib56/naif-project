@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
+import { sendWelcomeEmail } from "@/lib/email";
 
 const UNITEN_EMAIL_REGEX = /@uniten\.edu\.my$/i;
 
@@ -50,6 +51,11 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(email, name).catch((err) =>
+      console.error("Welcome email failed:", err)
+    );
 
     return NextResponse.json({
       id: user.id,

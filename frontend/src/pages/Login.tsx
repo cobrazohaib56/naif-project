@@ -79,12 +79,19 @@ export default function Login() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link to="/register" className="text-primary font-medium hover:underline">
-              Register
-            </Link>
-          </p>
+          <div className="mt-4 text-center text-sm text-muted-foreground space-y-2">
+            <p>
+              <Link to="/forgot-password" className="text-primary font-medium hover:underline">
+                Forgot your password?
+              </Link>
+            </p>
+            <p>
+              Don&apos;t have an account?{" "}
+              <Link to="/register" className="text-primary font-medium hover:underline">
+                Register
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

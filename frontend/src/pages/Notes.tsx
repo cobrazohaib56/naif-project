@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Upload, FileText } from "lucide-react";
+import { Search, Upload, FileText, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -29,6 +29,17 @@ const Notes = () => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteNote(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      toast.success("Note deleted");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
+    },
+  });
+
   const filtered = notes.filter((n) =>
     n.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -38,6 +49,14 @@ const Notes = () => {
     const file = e.target.files?.[0];
     if (file) uploadMutation.mutate(file);
     e.target.value = "";
+  };
+
+  const handleDelete = (e: React.MouseEvent, id: string, name: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
+      deleteMutation.mutate(id);
+    }
   };
 
   const getColor = (i: number) => {
@@ -66,7 +85,7 @@ const Notes = () => {
             disabled={uploadMutation.isPending}
           >
             <Upload className="h-4 w-4" />
-            {uploadMutation.isPending ? "Uploading…" : "Upload Note"}
+            {uploadMutation.isPending ? "Uploading..." : "Upload Note"}
           </Button>
         </div>
       </div>
@@ -82,7 +101,7 @@ const Notes = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading notes…</p>
+        <p className="text-muted-foreground">Loading notes...</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((note, i) => (
@@ -93,16 +112,27 @@ const Notes = () => {
                     <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${getColor(i)}`}>
                       <FileText className="h-6 w-6" />
                     </div>
-                    {note.summarized && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700">
-                        Summarized
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {note.summarized && (
+                        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700">
+                          Summarized
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDelete(e, note.id, note.name)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <h3 className="font-semibold text-foreground text-sm">{note.name}</h3>
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span>{formatDate(note.date)}</span>
-                    <span>•</span>
+                    <span>&bull;</span>
                     <span>{note.fileType}</span>
                   </div>
                 </CardContent>
