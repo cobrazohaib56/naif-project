@@ -63,9 +63,10 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
-    console.error("Writing improve error:", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[writing/improve] Error:", msg);
     return NextResponse.json(
-      { error: "Writing improvement failed" },
+      { error: msg || "Writing improvement failed" },
       { status: 500 }
     );
   }

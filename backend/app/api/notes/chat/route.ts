@@ -61,9 +61,10 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
-    console.error("Notes chat error:", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[notes/chat] Error:", msg);
     return NextResponse.json(
-      { error: "Document chat failed" },
+      { error: msg || "Document chat failed" },
       { status: 500 }
     );
   }

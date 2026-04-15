@@ -21,10 +21,28 @@ function moderateResponse(text: string): string {
 
 export async function callLlm(systemPrompt: string, userMessage: string): Promise<string> {
   if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured.");
+    throw new Error(
+      "GEMINI_API_KEY is not configured. Set it in your environment variables."
+    );
   }
-  const response = await callGemini(systemPrompt, userMessage);
-  return moderateResponse(response);
+  try {
+    const response = await callGemini(systemPrompt, userMessage);
+    return moderateResponse(response);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[llm] Gemini API error:", msg);
+
+    if (/api.key/i.test(msg) || /invalid/i.test(msg) || /401|403/.test(msg)) {
+      throw new Error("Gemini API key is invalid or expired. Check GEMINI_API_KEY.");
+    }
+    if (/quota|429|resource.*exhausted/i.test(msg)) {
+      throw new Error("Gemini API rate limit exceeded. Please try again in a moment.");
+    }
+    if (/safety/i.test(msg) || /blocked/i.test(msg)) {
+      throw new Error("The AI could not generate a response due to content safety filters.");
+    }
+    throw new Error(`AI generation failed: ${msg}`);
+  }
 }
 
 async function callGemini(systemPrompt: string, userMessage: string): Promise<string> {
@@ -35,6 +53,15 @@ async function callGemini(systemPrompt: string, userMessage: string): Promise<st
   });
 
   const result = await model.generateContent(userMessage);
-  const text = result.response.text();
-  return text?.trim() ?? "";
+  const response = result.response;
+
+  if (response.promptFeedback?.blockReason) {
+    throw new Error(`Content blocked: ${response.promptFeedback.blockReason}`);
+  }
+
+  const text = response.text();
+  if (!text?.trim()) {
+    throw new Error("Gemini returned an empty response");
+  }
+  return text.trim();
 }

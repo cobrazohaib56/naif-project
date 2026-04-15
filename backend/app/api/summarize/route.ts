@@ -82,9 +82,10 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
-    console.error("Summarize error:", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[summarize] Error:", msg);
     return NextResponse.json(
-      { error: "Summarization failed" },
+      { error: msg || "Summarization failed" },
       { status: 500 }
     );
   }

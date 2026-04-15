@@ -101,9 +101,10 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if (e instanceof Response) return e;
-    console.error("RAG ask error:", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[rag/ask] Error:", msg);
     return NextResponse.json(
-      { error: "RAG ask failed" },
+      { error: msg || "RAG ask failed" },
       { status: 500 }
     );
   }
