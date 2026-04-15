@@ -14,6 +14,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,10 +22,10 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      await api.register(email, password, name.trim() || undefined);
+      const result = await api.register(email, password, name.trim() || undefined);
+      setEmailSent(result?.emailSent === true);
       setSuccess(true);
-      // Auto-redirect to login after 3 seconds
-      setTimeout(() => navigate("/login"), 3000);
+      setTimeout(() => navigate("/login"), 4000);
     } catch (err) {
       setError(getAuthErrorMessage(err, "Registration failed"));
     } finally {
@@ -54,10 +55,16 @@ export default function Register() {
               </div>
               <div className="space-y-2">
                 <p className="font-semibold text-foreground text-lg">Account created!</p>
-                <p className="text-sm text-muted-foreground">
-                  Welcome to AI Study Companion. A welcome email has been sent to{" "}
-                  <strong>{email}</strong>.
-                </p>
+                {emailSent ? (
+                  <p className="text-sm text-muted-foreground">
+                    A welcome email has been sent to <strong>{email}</strong>.
+                    Check your inbox (and spam folder).
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Your account is ready. You can sign in now with <strong>{email}</strong>.
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Redirecting to login in a moment...
                 </p>

@@ -23,12 +23,12 @@ export async function POST(request: Request) {
 
     const { email, password } = parsed.data;
     const name = parsed.data.name?.trim() || null;
+    const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if email already exists
     const { data: existing } = await supabase
       .from("users")
       .select("id")
-      .eq("email", email.toLowerCase().trim())
+      .eq("email", normalizedEmail)
       .maybeSingle();
 
     if (existing) {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const { data: user, error } = await supabase
       .from("users")
       .insert({
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password_hash,
         role: "student",
         name,
@@ -65,10 +65,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send welcome email — non-blocking, never blocks or fails registration
-    sendWelcomeEmail(user.email, name).then((sent) => {
-      if (!sent) console.warn("[register] Welcome email not sent for:", user.email);
-    });
+    // MUST await the email — fire-and-forget dies on serverless/Render free tier
+    // Use a timeout so email issues don't block registration forever
+    let emailSent = false;
+    try {
+      emailSent = await Promise.race([
+        sendWelcomeEmail(user.email, name),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 12000)),
+      ]);
+    } catch (emailErr) {
+      console.error("[register] Email error:", emailErr instanceof Error ? emailErr.message : emailErr);
+    }
+
+    console.log(`[register] User created: ${user.email}, welcome email sent: ${emailSent}`);
 
     return NextResponse.json(
       {
@@ -76,6 +85,7 @@ export async function POST(request: Request) {
         email: user.email,
         role: user.role,
         name: user.name,
+        emailSent,
       },
       { status: 201 }
     );

@@ -4,26 +4,27 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const APP_NAME = "AI Study Companion";
 
-// Singleton transporter — created once, reused across calls
 let _transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter | null {
   if (!SMTP_USER || !SMTP_PASS) {
-    console.warn("[email] SMTP_USER or SMTP_PASS not set — email disabled");
+    console.warn("[email] SMTP_USER or SMTP_PASS env var is missing — email will not be sent");
     return null;
   }
   if (_transporter) return _transporter;
 
+  console.log(`[email] Creating SMTP transporter: smtp.gmail.com:587, user=${SMTP_USER}, pass length=${SMTP_PASS.length}`);
+
   _transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // STARTTLS on port 587
+    secure: false,
     auth: {
       user: SMTP_USER,
-      pass: SMTP_PASS, // must be a Gmail App Password (not your Gmail login password)
+      pass: SMTP_PASS,
     },
     tls: {
-      rejectUnauthorized: false, // allows Render's cloud environment to connect
+      rejectUnauthorized: false,
     },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
@@ -37,6 +38,8 @@ async function sendMail(to: string, subject: string, html: string): Promise<bool
   const transporter = getTransporter();
   if (!transporter) return false;
 
+  console.log(`[email] Sending "${subject}" to ${to}...`);
+
   try {
     const info = await transporter.sendMail({
       from: `"${APP_NAME}" <${SMTP_USER}>`,
@@ -44,12 +47,14 @@ async function sendMail(to: string, subject: string, html: string): Promise<bool
       subject,
       html,
     });
-    console.log(`[email] Sent to ${to} — messageId: ${info.messageId}`);
+    console.log(`[email] SUCCESS — sent to ${to}, messageId: ${info.messageId}`);
     return true;
-  } catch (err) {
-    // Reset singleton so next call tries a fresh connection
+  } catch (err: unknown) {
     _transporter = null;
-    console.error(`[email] Failed to send to ${to}:`, err instanceof Error ? err.message : err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errCode = (err as { code?: string })?.code ?? "unknown";
+    const errResp = (err as { responseCode?: number })?.responseCode;
+    console.error(`[email] FAILED to send to ${to} — code: ${errCode}, responseCode: ${errResp}, message: ${errMsg}`);
     return false;
   }
 }
@@ -63,14 +68,14 @@ export async function sendWelcomeEmail(to: string, name?: string | null): Promis
       <h2 style="color:#4F46E5;margin-bottom:8px;">${greeting}, welcome to ${APP_NAME}!</h2>
       <p style="color:#374151;">Your account has been created successfully. Here's what you can do:</p>
       <ul style="color:#374151;line-height:1.8;">
-        <li>📄 Upload and AI-summarize your study notes</li>
-        <li>💬 Chat with AI about any uploaded document</li>
-        <li>🧠 Take quizzes to test your knowledge</li>
-        <li>✍️ Use the writing coach to improve your essays</li>
-        <li>🔍 Ask the AI assistant questions about course materials</li>
+        <li>Upload and AI-summarize your study notes</li>
+        <li>Chat with AI about any uploaded document</li>
+        <li>Take quizzes to test your knowledge</li>
+        <li>Use the writing coach to improve your essays</li>
+        <li>Ask the AI assistant questions about course materials</li>
       </ul>
       <p style="color:#374151;">You can sign in at any time to get started.</p>
-      <p style="color:#9CA3AF;font-size:12px;margin-top:32px;">— The ${APP_NAME} Team</p>
+      <p style="color:#9CA3AF;font-size:12px;margin-top:32px;">- The ${APP_NAME} Team</p>
     </div>`
   );
 }
@@ -97,7 +102,7 @@ export async function sendPasswordResetEmail(
       <p style="color:#6B7280;font-size:13px;">
         This link expires in <strong>1 hour</strong>. If you didn't request this, you can safely ignore this email.
       </p>
-      <p style="color:#9CA3AF;font-size:12px;margin-top:32px;">— The ${APP_NAME} Team</p>
+      <p style="color:#9CA3AF;font-size:12px;margin-top:32px;">- The ${APP_NAME} Team</p>
     </div>`
   );
 }
@@ -112,7 +117,7 @@ export async function sendCustomEmail(
     subject,
     `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
       ${bodyHtml}
-      <p style="color:#9CA3AF;font-size:12px;margin-top:32px;">— ${APP_NAME}</p>
+      <p style="color:#9CA3AF;font-size:12px;margin-top:32px;">- ${APP_NAME}</p>
     </div>`
   );
 }

@@ -63,7 +63,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password, name }),
     });
-    return handleResponse<{ id: string; email: string; role: string; name?: string }>(res);
+    return handleResponse<{ id: string; email: string; role: string; name?: string; emailSent?: boolean }>(res);
   },
 
   async signIn(email: string, password: string) {
