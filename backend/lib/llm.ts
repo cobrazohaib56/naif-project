@@ -48,7 +48,7 @@ export async function callLlm(systemPrompt: string, userMessage: string): Promis
 async function callGemini(systemPrompt: string, userMessage: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.0-flash-lite",
     systemInstruction: systemPrompt,
   });
 
