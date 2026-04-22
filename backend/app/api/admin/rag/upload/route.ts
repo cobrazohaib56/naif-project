@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < chunks.length; i++) {
       try {
-        const embedding = await embedText(chunks[i]);
+        const embedding = await embedText(chunks[i], "passage");
         if (embedding.length === 0) {
           if (!firstError) firstError = "Embedding API returned an empty vector";
           continue;

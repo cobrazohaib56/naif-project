@@ -52,9 +52,15 @@ Optional model overrides: `GROQ_MODEL`, `GEMINI_MODEL`.
 
 ## RAG & Embeddings
 
-- **Embeddings** always use HuggingFace Inference API (set `HUGGINGFACE_API_KEY`).
-- Default model: `sentence-transformers/all-MiniLM-L6-v2` (384-dim). Override with `HUGGINGFACE_EMBEDDING_MODEL`.
-- The DB schema uses `vector(384)` — the embedding model dimension must match.
+The embedding provider is selectable via `EMBEDDING_PROVIDER`:
+
+| Provider | Env var | Model | Notes |
+|----------|---------|-------|-------|
+| **Jina** (default) | `JINA_API_KEY` | `jina-embeddings-v3` @ 384 dim | Free 10M tokens on signup, reliable |
+| **HuggingFace** (fallback) | `HUGGINGFACE_API_KEY` | `sentence-transformers/all-MiniLM-L6-v2` | Set `EMBEDDING_PROVIDER=huggingface` to use |
+
+- Get a free Jina key at [jina.ai](https://jina.ai) — no credit card required.
+- The DB schema uses `vector(384)` — both providers produce 384-dim vectors.
 - Admin uploads PDF/DOCX via Admin → RAG Documents. Documents are chunked, embedded, and stored in `rag_chunks`.
 - Students use Ask AI for similarity search over the indexed corpus.
 - Quiz generation can use RAG documents as source material (via `ragDocumentId`).

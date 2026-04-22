@@ -27,10 +27,12 @@ export async function POST(request: Request) {
 
     let embedding: number[];
     try {
-      embedding = await embedText(question);
+      embedding = await embedText(question, "query");
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[rag/ask] Embedding failed:", msg);
       return NextResponse.json(
-        { error: "Embedding service unavailable. Check that HUGGINGFACE_API_KEY is set and the embedding model is accessible." },
+        { error: `Embedding service unavailable. ${msg}` },
         { status: 503 }
       );
     }
