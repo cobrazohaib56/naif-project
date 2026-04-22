@@ -96,11 +96,15 @@ export async function POST(request: Request) {
 
     const chunks = chunkText(text, 500, 50);
     let indexed = 0;
+    let firstError: string | null = null;
 
     for (let i = 0; i < chunks.length; i++) {
       try {
         const embedding = await embedText(chunks[i]);
-        if (embedding.length === 0) continue;
+        if (embedding.length === 0) {
+          if (!firstError) firstError = "Embedding API returned an empty vector";
+          continue;
+        }
         await supabase.from("rag_chunks").insert({
           rag_document_id: docRow.id,
           chunk_text: chunks[i],
@@ -108,9 +112,26 @@ export async function POST(request: Request) {
           metadata: { page: Math.floor(i / 5) + 1 },
         });
         indexed++;
-      } catch {
-        // skip failed chunks
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[rag/upload] Chunk ${i} embedding failed:`, msg);
+        if (!firstError) firstError = msg;
       }
+    }
+
+    if (indexed === 0) {
+      await supabase.from("rag_chunks").delete().eq("rag_document_id", docRow.id);
+      await supabase.from("rag_documents").delete().eq("id", docRow.id);
+      await supabase.storage.from("rag").remove([path]).catch(() => {});
+      return NextResponse.json(
+        {
+          error:
+            "Indexing failed — embeddings could not be generated. " +
+            (firstError ? `Reason: ${firstError}. ` : "") +
+            "Verify HUGGINGFACE_API_KEY is valid and has Inference permission.",
+        },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({
