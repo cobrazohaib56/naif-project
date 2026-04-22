@@ -39,7 +39,7 @@ The application follows a **decoupled client-server architecture**:
                                                     ┌────────────┼────────────┐
                                                     │            │            │
                                                     ▼            ▼            ▼
-                                               Supabase      Google       HuggingFace
+                                               Supabase      GROQ /       HuggingFace
                                               (Postgres +    Gemini API   Inference API
                                                Storage)      (LLM)       (Embeddings)
 ```
@@ -48,7 +48,7 @@ The application follows a **decoupled client-server architecture**:
 - **Backend** — A Next.js API-only server. Every route under `/api/*` is a serverless-style handler. Handles authentication, database access, AI calls, file storage, and email.
 - **Database** — PostgreSQL hosted on Supabase. Uses the `pgvector` extension for storing and searching document embeddings.
 - **File Storage** — Supabase Storage buckets for uploaded documents.
-- **AI Services** — Google Gemini for text generation (summaries, chat, quiz generation, writing improvement). HuggingFace for vector embeddings used in RAG search.
+- **AI Services** — GROQ (Llama 3.3, primary) or Google Gemini (fallback) for text generation (summaries, chat, quiz generation, writing improvement). Provider is selected via the `LLM_PROVIDER` env var. HuggingFace for vector embeddings used in RAG search.
 
 ### How a request flows
 
@@ -72,7 +72,7 @@ The application follows a **decoupled client-server architecture**:
 | **Authentication** | NextAuth v5 (Auth.js) | JWT sessions with credentials provider; 30-day session lifetime |
 | **Database** | PostgreSQL on Supabase | Managed Postgres with built-in REST client, Row Level Security, and pgvector |
 | **Vector Search** | pgvector extension | Cosine similarity search on 384-dimensional embeddings for RAG |
-| **AI / LLM** | Google Gemini API (gemini-2.0-flash-lite) | Text generation for summaries, document chat, quiz generation, and writing improvement |
+| **AI / LLM** | GROQ (llama-3.3-70b-versatile, primary) / Google Gemini (fallback) | Text generation for summaries, document chat, quiz generation, and writing improvement. Provider switchable via `LLM_PROVIDER` env var |
 | **Embeddings** | HuggingFace Inference API (all-MiniLM-L6-v2) | 384-dim sentence embeddings for RAG document indexing and search |
 | **File Storage** | Supabase Storage | Stores uploaded PDFs, DOCX, and TXT files with signed URL access |
 | **Email** | Nodemailer + Gmail SMTP | Sends welcome, password reset, and admin emails |
@@ -100,11 +100,13 @@ The application follows a **decoupled client-server architecture**:
 | `NEXTAUTH_SECRET` | Secret key for JWT signing |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (bypasses RLS) |
-| `GEMINI_API_KEY` | Google AI Studio API key for Gemini |
+| `LLM_PROVIDER` | AI provider: `groq` (default) or `gemini` |
+| `GROQ_API_KEY` | GROQ API key (primary LLM) |
+| `GEMINI_API_KEY` | Google Gemini API key (fallback LLM) |
 | `HUGGINGFACE_API_KEY` | HuggingFace API key for embeddings |
 | `SMTP_USER` | Gmail address for sending emails |
-| `SMTP_PASS` | Gmail App Password |
-| `FRONTEND_URL` | Frontend URL (used in password reset links) |
+| `SMTP_PASS` | Gmail App Password (not your login password) |
+| `FRONTEND_URL` | Frontend URL (used in password reset links and CORS) |
 
 ### Environment Variables (Frontend)
 
@@ -892,15 +894,15 @@ A: RLS is enabled on all tables, but our backend uses the Supabase service role 
 
 **Q: Explain how the RAG (Retrieval-Augmented Generation) pipeline works step by step.**
 
-A: Step 1 — Admin uploads a document. The backend extracts text, splits it into chunks (~500 words each), generates a 384-dim vector embedding for each chunk using HuggingFace's all-MiniLM-L6-v2 model, and stores both the text and embedding in the `rag_chunks` table. Step 2 — Student asks a question. The backend embeds the question using the same model, runs a cosine similarity search via pgvector to find the top 5 most relevant chunks, builds a context string from those chunks, and sends it to Gemini with instructions to answer using only the provided context and cite sources. Step 3 — Gemini generates an answer grounded in the retrieved documents.
+A: Step 1 — Admin uploads a document. The backend extracts text, splits it into chunks (~500 words each), generates a 384-dim vector embedding for each chunk using HuggingFace's all-MiniLM-L6-v2 model, and stores both the text and embedding in the `rag_chunks` table. Step 2 — Student asks a question. The backend embeds the question using the same model, runs a cosine similarity search via pgvector to find the top 5 most relevant chunks, builds a context string from those chunks, and sends it to the configured LLM (GROQ by default, or Gemini as fallback) with instructions to answer using only the provided context and cite sources. Step 3 — The LLM generates an answer grounded in the retrieved documents.
 
-**Q: Why do you use HuggingFace for embeddings and Gemini for text generation? Why not one provider for both?**
+**Q: Why do you use HuggingFace for embeddings and GROQ/Gemini for text generation? Why not one provider for both?**
 
-A: We use HuggingFace's all-MiniLM-L6-v2 specifically because it produces 384-dimensional vectors that match our database schema (`vector(384)`). Switching to Gemini embeddings would produce different dimensions, requiring a database migration and re-embedding all existing documents. Gemini is used for generation because it provides a generous free tier and high-quality text output suitable for academic content.
+A: We use HuggingFace's all-MiniLM-L6-v2 specifically because it produces 384-dimensional vectors that match our database schema (`vector(384)`). Switching embedding providers would produce different dimensions, requiring a database migration and re-embedding all existing documents. For text generation, we use a dual-provider setup: GROQ (Llama 3.3 70B) as the primary provider for its fast inference and generous free tier, with Google Gemini as a fallback. The `LLM_PROVIDER` env var controls which provider is used — switching requires only an env change and redeploy, no code changes.
 
 **Q: How is document chat different from RAG Q&A?**
 
-A: Document chat operates on a single document — it takes the first 12,000 characters of the document's extracted text and sends it directly to Gemini as context. RAG Q&A operates across the entire indexed knowledge base — it uses vector similarity search to find relevant chunks from any document, then generates an answer with source citations. Document chat is personal (student's own notes), while RAG Q&A is institutional (admin-curated knowledge base).
+A: Document chat operates on a single document — it takes the first 12,000 characters of the document's extracted text and sends it directly to the LLM as context. RAG Q&A operates across the entire indexed knowledge base — it uses vector similarity search to find relevant chunks from any document, then generates an answer with source citations. Document chat is personal (student's own notes), while RAG Q&A is institutional (admin-curated knowledge base).
 
 ---
 

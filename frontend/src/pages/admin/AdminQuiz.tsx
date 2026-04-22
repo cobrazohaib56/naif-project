@@ -14,6 +14,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Brain, Plus, Pencil, Trash2, Power, PowerOff, ListChecks, Sparkles, X } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -42,11 +49,18 @@ export default function AdminQuiz() {
   const [manualCorrect, setManualCorrect] = useState(0);
 
   // AI generate form
+  const [aiSourceMode, setAiSourceMode] = useState<"rag" | "paste">("rag");
+  const [aiRagDocId, setAiRagDocId] = useState("");
   const [aiText, setAiText] = useState("");
   const [aiNumQuestions, setAiNumQuestions] = useState("5");
   const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<
     { questionText: string; options: string[]; correctAnswer: string; type: string }[]
   >([]);
+
+  const { data: ragDocuments = [] } = useQuery({
+    queryKey: ["admin-rag-documents"],
+    queryFn: () => api.getAdminRagDocuments(),
+  });
 
   const { data: quizDetail, isLoading: loadingDetail } = useQuery({
     queryKey: ["quiz-detail-admin", managingQuizId],
@@ -114,7 +128,13 @@ export default function AdminQuiz() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: () => api.generateQuiz(aiText, parseInt(aiNumQuestions, 10) || 5, "mcq"),
+    mutationFn: () =>
+      api.generateQuiz({
+        ragDocumentId: aiSourceMode === "rag" ? aiRagDocId || undefined : undefined,
+        documentText: aiSourceMode === "paste" ? aiText : undefined,
+        numQuestions: parseInt(aiNumQuestions, 10) || 5,
+        questionType: "mcq",
+      }),
     onSuccess: (data) => {
       setAiGeneratedQuestions(data.questions);
       toast.success(`Generated ${data.questions.length} questions. Review and save them.`);
@@ -436,14 +456,58 @@ export default function AdminQuiz() {
             {/* AI Generate Tab */}
             <TabsContent value="ai" className="mt-4 space-y-4">
               <div>
-                <Label>Paste document text or study material</Label>
-                <Textarea
-                  value={aiText}
-                  onChange={(e) => setAiText(e.target.value)}
-                  placeholder="Paste the content you want to generate questions from..."
-                  className="mt-1 min-h-[120px]"
-                />
+                <Label className="mb-1 block">Source</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={aiSourceMode === "rag" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAiSourceMode("rag")}
+                  >
+                    RAG Document
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={aiSourceMode === "paste" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAiSourceMode("paste")}
+                  >
+                    Paste Text
+                  </Button>
+                </div>
               </div>
+
+              {aiSourceMode === "rag" ? (
+                <div>
+                  <Label>Select a RAG document</Label>
+                  <Select value={aiRagDocId} onValueChange={setAiRagDocId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Choose a document..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ragDocuments.map((doc) => (
+                        <SelectItem key={doc.id} value={doc.id}>
+                          {doc.title} ({doc.chunksCount} chunks)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {ragDocuments.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">No RAG documents uploaded yet. Upload one in the Documents page first.</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label>Paste document text or study material</Label>
+                  <Textarea
+                    value={aiText}
+                    onChange={(e) => setAiText(e.target.value)}
+                    placeholder="Paste the content you want to generate questions from..."
+                    className="mt-1 min-h-[120px]"
+                  />
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <div>
                   <Label>Number of questions</Label>
@@ -457,7 +521,10 @@ export default function AdminQuiz() {
                 <div className="pt-5">
                   <Button
                     onClick={() => generateMutation.mutate()}
-                    disabled={generateMutation.isPending || !aiText.trim()}
+                    disabled={
+                      generateMutation.isPending ||
+                      (aiSourceMode === "rag" ? !aiRagDocId : !aiText.trim())
+                    }
                     className="gap-2"
                   >
                     <Sparkles className="h-4 w-4" />

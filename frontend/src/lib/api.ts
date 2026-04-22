@@ -261,10 +261,17 @@ export const api = {
     return handleResponse<{ attemptId: string; score: number; total: number; percentage: number }>(res);
   },
 
-  async generateQuiz(documentText: string, numQuestions = 10, questionType: "mcq" | "short" = "mcq") {
+  async generateQuiz(
+    opts: { ragDocumentId?: string; documentText?: string; numQuestions?: number; questionType?: "mcq" | "short" }
+  ) {
     const res = await fetchWithCredentials("/api/quiz/generate", {
       method: "POST",
-      body: JSON.stringify({ documentText, numQuestions, questionType }),
+      body: JSON.stringify({
+        ragDocumentId: opts.ragDocumentId,
+        documentText: opts.documentText,
+        numQuestions: opts.numQuestions ?? 10,
+        questionType: opts.questionType ?? "mcq",
+      }),
     });
     return handleResponse<{ questions: { questionText: string; options: string[]; correctAnswer: string; type: string; order_index: number }[] }>(res);
   },

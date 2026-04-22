@@ -9,7 +9,7 @@ Run the **backend** first, then the **frontend**. Both must be running for the a
 - **Node.js** 20+ (or Bun)
 - **npm** (or pnpm / yarn)
 - A **Supabase** project (for database and storage)
-- (Optional) **Ollama** for local LLM and embeddings
+- A **GROQ** API key (free at [console.groq.com](https://console.groq.com/keys)) or a **Gemini** API key
 
 ---
 
@@ -49,12 +49,12 @@ Edit `.env.local` and set at least:
 | `NEXTAUTH_SECRET` | Random secret for sessions | Run: `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Backend URL (for auth callbacks) | `http://localhost:3001` |
 | `FRONTEND_URL` | Frontend URL (for CORS) | `http://localhost:5173` |
-| `OLLAMA_BASE_URL` | (Optional) Ollama for LLM/embeddings | `http://localhost:11434` |
-
-For **HuggingFace** instead of Ollama, set:
-
-- `HUGGINGFACE_API_KEY`
-- Optionally `HUGGINGFACE_LLM_MODEL` and `HUGGINGFACE_EMBEDDING_MODEL` (embedding model must output 768 dimensions to match the DB, or you need a 384-d migration).
+| `LLM_PROVIDER` | AI provider: `groq` (default) or `gemini` | `groq` |
+| `GROQ_API_KEY` | GROQ API key (primary LLM) | Get from console.groq.com |
+| `GEMINI_API_KEY` | (Optional) Gemini fallback key | From Google AI Studio |
+| `HUGGINGFACE_API_KEY` | HuggingFace key for RAG embeddings | Required for Ask AI |
+| `SMTP_USER` | Gmail address for password reset emails | `you@gmail.com` |
+| `SMTP_PASS` | Gmail App Password (not your login password) | See [Google guide](https://support.google.com/accounts/answer/185833) |
 
 ### 1.4 Run the backend
 
@@ -114,17 +114,16 @@ Frontend runs at **http://localhost:5173** (or the port Vite prints).
 
 ---
 
-## 4. Optional: Ollama (local AI)
+## 4. AI Provider Configuration
 
-For summarization, writing improvement, quiz generation, and RAG answers without HuggingFace:
+The backend supports two LLM providers, selected via the `LLM_PROVIDER` env var:
 
-1. Install [Ollama](https://ollama.ai).
-2. Run:
-   ```bash
-   ollama pull llama3.2
-   ollama pull nomic-embed-text
-   ```
-3. Ensure `OLLAMA_BASE_URL=http://localhost:11434` in the backend `.env.local`.
+- **GROQ** (default) — Uses Llama 3.3 70B via GROQ's API. Set `GROQ_API_KEY` in `.env.local`. Get a key from [console.groq.com](https://console.groq.com/keys).
+- **Gemini** (fallback) — Set `LLM_PROVIDER=gemini` and `GEMINI_API_KEY` in `.env.local`.
+
+To switch providers, change `LLM_PROVIDER` and redeploy — no code changes needed.
+
+**Embeddings** (for RAG / Ask AI) always use HuggingFace, regardless of the LLM provider. Set `HUGGINGFACE_API_KEY` in `.env.local`.
 
 ---
 

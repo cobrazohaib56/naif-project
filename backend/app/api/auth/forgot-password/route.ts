@@ -53,7 +53,15 @@ export async function POST(request: Request) {
     }
 
     const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
-    await sendPasswordResetEmail(user.email, resetLink, user.name);
+    const emailSent = await sendPasswordResetEmail(user.email, resetLink, user.name);
+
+    if (!emailSent) {
+      console.error(
+        `[forgot-password] FAILED to send reset email to ${user.email}. ` +
+        "Check that SMTP_USER and SMTP_PASS are set correctly (Gmail requires an App Password). " +
+        `FRONTEND_URL=${FRONTEND_URL}`
+      );
+    }
 
     return NextResponse.json({ message: "If an account with that email exists, a reset link has been sent." });
   } catch (e) {

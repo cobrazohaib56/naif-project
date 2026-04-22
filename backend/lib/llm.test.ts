@@ -1,11 +1,54 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-describe("llm", () => {
+vi.mock("groq-sdk", () => {
+  const create = vi.fn();
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      chat: { completions: { create } },
+    })),
+    __mockCreate: create,
+  };
+});
+
+vi.mock("@google/generative-ai", () => {
+  const generateContent = vi.fn();
+  return {
+    GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
+      getGenerativeModel: () => ({ generateContent }),
+    })),
+    __mockGenerateContent: generateContent,
+  };
+});
+
+async function getGroqMock() {
+  const mod = await import("groq-sdk") as { __mockCreate: ReturnType<typeof vi.fn> };
+  return mod.__mockCreate;
+}
+
+async function getGeminiMock() {
+  const mod = await import("@google/generative-ai") as { __mockGenerateContent: ReturnType<typeof vi.fn> };
+  return mod.__mockGenerateContent;
+}
+
+describe("llm – GROQ provider (default)", () => {
   let callLlm: typeof import("./llm").callLlm;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
-    vi.stubGlobal("fetch", vi.fn());
+    vi.stubEnv("GROQ_API_KEY", "test-groq-key");
+    vi.stubEnv("LLM_PROVIDER", "groq");
+
+    vi.doMock("groq-sdk", () => {
+      const create = vi.fn();
+      return { default: vi.fn().mockImplementation(() => ({ chat: { completions: { create } } })), __mockCreate: create };
+    });
+    vi.doMock("@google/generative-ai", () => {
+      const generateContent = vi.fn();
+      return { GoogleGenerativeAI: vi.fn().mockImplementation(() => ({ getGenerativeModel: () => ({ generateContent }) })), __mockGenerateContent: generateContent };
+    });
+
+    const mod = await import("./llm");
+    callLlm = mod.callLlm;
   });
 
   afterEach(() => {
@@ -13,110 +56,120 @@ describe("llm", () => {
     vi.unstubAllEnvs();
   });
 
-  describe("callLlm throws when API key is missing", () => {
-    it("throws if HUGGINGFACE_API_KEY is not set", async () => {
-      vi.stubEnv("HUGGINGFACE_API_KEY", "");
-      const mod = await import("./llm");
-      callLlm = mod.callLlm;
+  it("throws when GROQ_API_KEY is missing", async () => {
+    vi.resetModules();
+    vi.stubEnv("GROQ_API_KEY", "");
+    vi.stubEnv("LLM_PROVIDER", "groq");
 
-      await expect(callLlm("system", "user")).rejects.toThrow(
-        "HUGGINGFACE_API_KEY is not set"
-      );
+    vi.doMock("groq-sdk", () => {
+      const create = vi.fn();
+      return { default: vi.fn().mockImplementation(() => ({ chat: { completions: { create } } })), __mockCreate: create };
     });
+    vi.doMock("@google/generative-ai", () => {
+      const generateContent = vi.fn();
+      return { GoogleGenerativeAI: vi.fn().mockImplementation(() => ({ getGenerativeModel: () => ({ generateContent }) })), __mockGenerateContent: generateContent };
+    });
+
+    const mod = await import("./llm");
+    await expect(mod.callLlm("system", "user")).rejects.toThrow("GROQ_API_KEY is not configured");
   });
 
-  describe("content moderation via callLlm", () => {
-    beforeEach(async () => {
-      vi.stubEnv("HUGGINGFACE_API_KEY", "test-key");
-      const mod = await import("./llm");
-      callLlm = mod.callLlm;
+  it("returns clean text from GROQ", async () => {
+    const create = await getGroqMock();
+    create.mockResolvedValueOnce({
+      choices: [{ message: { content: "Quantum mechanics describes particle behavior." } }],
     });
 
-    it("returns safe fallback when response contains unsafe word 'hack'", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify([{ generated_text: "Here is how to hack the system" }]))
-      );
+    const result = await callLlm("system", "user");
+    expect(result).toBe("Quantum mechanics describes particle behavior.");
+  });
 
-      const result = await callLlm("system prompt", "user message");
-      expect(result).toBe(
-        "I can only help with academic topics. Please rephrase your question."
-      );
+  it("returns safe fallback for unsafe content", async () => {
+    const create = await getGroqMock();
+    create.mockResolvedValueOnce({
+      choices: [{ message: { content: "Here is how to hack the system" } }],
     });
 
-    it("returns safe fallback for violent content", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify([{ generated_text: "Instructions to make a bomb" }]))
-      );
+    const result = await callLlm("system", "user");
+    expect(result).toBe("I can only help with academic topics. Please rephrase your question.");
+  });
 
-      const result = await callLlm("system", "user");
-      expect(result).toBe(
-        "I can only help with academic topics. Please rephrase your question."
-      );
+  it("throws on empty GROQ response", async () => {
+    const create = await getGroqMock();
+    create.mockResolvedValueOnce({
+      choices: [{ message: { content: "" } }],
     });
 
-    it("returns safe fallback for explicit content", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify([{ generated_text: "Some porn content here" }]))
-      );
+    await expect(callLlm("system", "user")).rejects.toThrow("GROQ returned an empty response");
+  });
+});
 
-      const result = await callLlm("system", "user");
-      expect(result).toBe(
-        "I can only help with academic topics. Please rephrase your question."
-      );
+describe("llm – Gemini provider", () => {
+  let callLlm: typeof import("./llm").callLlm;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key");
+    vi.stubEnv("LLM_PROVIDER", "gemini");
+
+    vi.doMock("groq-sdk", () => {
+      const create = vi.fn();
+      return { default: vi.fn().mockImplementation(() => ({ chat: { completions: { create } } })), __mockCreate: create };
+    });
+    vi.doMock("@google/generative-ai", () => {
+      const generateContent = vi.fn();
+      return { GoogleGenerativeAI: vi.fn().mockImplementation(() => ({ getGenerativeModel: () => ({ generateContent }) })), __mockGenerateContent: generateContent };
     });
 
-    it("passes through clean academic text unchanged", async () => {
-      const cleanText = "Quantum mechanics describes the behavior of particles at the atomic scale.";
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify([{ generated_text: cleanText }]))
-      );
+    const mod = await import("./llm");
+    callLlm = mod.callLlm;
+  });
 
-      const result = await callLlm("system", "user");
-      expect(result).toBe(cleanText);
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("throws when GEMINI_API_KEY is missing", async () => {
+    vi.resetModules();
+    vi.stubEnv("GEMINI_API_KEY", "");
+    vi.stubEnv("LLM_PROVIDER", "gemini");
+
+    vi.doMock("groq-sdk", () => {
+      const create = vi.fn();
+      return { default: vi.fn().mockImplementation(() => ({ chat: { completions: { create } } })), __mockCreate: create };
+    });
+    vi.doMock("@google/generative-ai", () => {
+      const generateContent = vi.fn();
+      return { GoogleGenerativeAI: vi.fn().mockImplementation(() => ({ getGenerativeModel: () => ({ generateContent }) })), __mockGenerateContent: generateContent };
     });
 
-    it("calls HuggingFace API with correct URL and headers", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify([{ generated_text: "Answer" }]))
-      );
+    const mod = await import("./llm");
+    await expect(mod.callLlm("system", "user")).rejects.toThrow("GEMINI_API_KEY is not configured");
+  });
 
-      await callLlm("system prompt", "user message");
-
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining("api-inference.huggingface.co/models/"),
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({
-            Authorization: "Bearer test-key",
-          }),
-        })
-      );
+  it("returns clean text from Gemini", async () => {
+    const generateContent = await getGeminiMock();
+    generateContent.mockResolvedValueOnce({
+      response: {
+        promptFeedback: {},
+        text: () => "Photosynthesis converts light energy to chemical energy.",
+      },
     });
 
-    it("throws on non-ok HuggingFace response", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response("Model overloaded", { status: 503 })
-      );
+    const result = await callLlm("system", "user");
+    expect(result).toBe("Photosynthesis converts light energy to chemical energy.");
+  });
 
-      await expect(callLlm("system", "user")).rejects.toThrow("Model overloaded");
+  it("throws on blocked content", async () => {
+    const generateContent = await getGeminiMock();
+    generateContent.mockResolvedValueOnce({
+      response: {
+        promptFeedback: { blockReason: "SAFETY" },
+        text: () => "",
+      },
     });
 
-    it("handles response as single object (not array)", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify({ generated_text: "Single response" }))
-      );
-
-      const result = await callLlm("system", "user");
-      expect(result).toBe("Single response");
-    });
-
-    it("returns empty string when generated_text is missing", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(JSON.stringify([{}]))
-      );
-
-      const result = await callLlm("system", "user");
-      expect(result).toBe("");
-    });
+    await expect(callLlm("system", "user")).rejects.toThrow("content safety filters");
   });
 });

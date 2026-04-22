@@ -24,7 +24,6 @@ Next.js 15 API + NextAuth + Supabase + AI/RAG for the UNITEN AI Study Companion.
      - `NEXTAUTH_SECRET` (e.g. `openssl rand -base64 32`)
      - `NEXTAUTH_URL=http://localhost:3001`
      - `FRONTEND_URL=http://localhost:5173`
-     - `OLLAMA_BASE_URL=http://localhost:11434` (if using Ollama for LLM and embeddings)
 
 4. **First admin user**
    - Register via the frontend with a UNITEN email, then in Supabase run:
@@ -38,8 +37,32 @@ Next.js 15 API + NextAuth + Supabase + AI/RAG for the UNITEN AI Study Companion.
    ```
    Backend runs at http://localhost:3001. Point the frontend `VITE_API_URL` to this URL.
 
-## AI
+## AI Provider
 
-- **Ollama (local):** Install [Ollama](https://ollama.ai), run `ollama pull llama3.2` and `ollama pull nomic-embed-text`. Set `OLLAMA_BASE_URL`.
-- **RAG:** Admin uploads PDF/DOCX in the Admin → RAG Documents. Documents are chunked, embedded with nomic-embed-text (768 dimensions), and stored in `rag_chunks`. Students use Ask AI to query with similarity search. The `courseFilter` parameter in Ask AI filters results by document course/department.
-- **Embedding dimension:** The schema uses `vector(768)` to match nomic-embed-text. If you use HuggingFace for embeddings, set `HUGGINGFACE_EMBEDDING_MODEL` to a model that outputs 768 dimensions, or add a migration to use `vector(384)` and set the dimension in `lib/embeddings.ts` to 384.
+The backend supports two LLM providers, controlled by the `LLM_PROVIDER` env var:
+
+| Provider | Env var | Model | Notes |
+|----------|---------|-------|-------|
+| **GROQ** (default) | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Fast inference, generous free tier |
+| **Gemini** (fallback) | `GEMINI_API_KEY` | `gemini-2.0-flash-lite` | Set `LLM_PROVIDER=gemini` to use |
+
+To switch: change `LLM_PROVIDER` in your env and restart. No code changes needed.
+
+Optional model overrides: `GROQ_MODEL`, `GEMINI_MODEL`.
+
+## RAG & Embeddings
+
+- **Embeddings** always use HuggingFace Inference API (set `HUGGINGFACE_API_KEY`).
+- Default model: `sentence-transformers/all-MiniLM-L6-v2` (384-dim). Override with `HUGGINGFACE_EMBEDDING_MODEL`.
+- The DB schema uses `vector(384)` — the embedding model dimension must match.
+- Admin uploads PDF/DOCX via Admin → RAG Documents. Documents are chunked, embedded, and stored in `rag_chunks`.
+- Students use Ask AI for similarity search over the indexed corpus.
+- Quiz generation can use RAG documents as source material (via `ragDocumentId`).
+
+## Email (SMTP)
+
+Required for password reset and welcome emails:
+
+- `SMTP_USER` — Gmail address
+- `SMTP_PASS` — Gmail App Password (not your login password; see [Google guide](https://support.google.com/accounts/answer/185833))
+- `FRONTEND_URL` — Used in password reset links (e.g. `http://localhost:5173`)

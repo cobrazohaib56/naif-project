@@ -7,11 +7,15 @@ import { callLlm } from "@/lib/llm";
 import { QUIZ_GENERATE_PROMPT } from "@/lib/prompts";
 
 const bodySchema = z.object({
+  ragDocumentId: z.string().uuid().optional(),
   documentId: z.string().uuid().optional(),
   documentText: z.string().optional(),
   numQuestions: z.number().min(1).max(20).default(10),
   questionType: z.enum(["mcq", "short"]).default("mcq"),
-}).refine((d) => d.documentId ?? d.documentText, { message: "Provide documentId or documentText" });
+}).refine(
+  (d) => d.ragDocumentId || d.documentId || d.documentText,
+  { message: "Provide ragDocumentId, documentId, or documentText" }
+);
 
 export async function POST(request: Request) {
   try {
@@ -29,7 +33,21 @@ export async function POST(request: Request) {
     }
 
     let text: string;
-    if (parsed.data.documentId) {
+
+    if (parsed.data.ragDocumentId) {
+      const { data: chunks, error: chunksErr } = await supabase
+        .from("rag_chunks")
+        .select("chunk_text, created_at")
+        .eq("rag_document_id", parsed.data.ragDocumentId)
+        .order("created_at", { ascending: true });
+
+      if (chunksErr) {
+        console.error("[quiz/generate] Failed to load RAG chunks:", chunksErr.message);
+        return NextResponse.json({ error: "Failed to load RAG document" }, { status: 500 });
+      }
+
+      text = (chunks ?? []).map((c) => c.chunk_text).join("\n\n").slice(0, 80000);
+    } else if (parsed.data.documentId) {
       const { data: doc } = await supabase
         .from("documents")
         .select("extracted_text")
