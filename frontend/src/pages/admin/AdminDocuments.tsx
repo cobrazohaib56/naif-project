@@ -42,8 +42,8 @@ export default function AdminDocuments() {
   return (
     <div className="space-y-6 max-w-6xl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">RAG Documents</h1>
-        <p className="text-muted-foreground mt-1">Upload UNITEN policy and course documents for AI Q&A</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Knowledge Base</h1>
+        <p className="text-muted-foreground mt-1">Upload documents so Ask AI and Smart Quiz can use them</p>
       </div>
 
       <Card className="shadow-sm">

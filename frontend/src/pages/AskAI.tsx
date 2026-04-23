@@ -102,13 +102,13 @@ const AskAI = () => {
     <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-8rem)]">
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Ask AI</h1>
-        <p className="text-muted-foreground mt-1">Ask about UNITEN policies and academic info</p>
+        <p className="text-muted-foreground mt-1">Ask questions about your uploaded documents</p>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
         {messages.length === 0 && (
           <p className="text-center text-muted-foreground text-sm py-8">
-            Ask a question about UNITEN rules, procedures, or courses. Answers are based on documents uploaded by admins.
+            Ask any question about your uploaded documents. Upload files in the Knowledge Base first, then chat with them here.
           </p>
         )}
         {messages.map((msg, i) => (
@@ -152,7 +152,7 @@ const AskAI = () => {
 
       <div className="flex gap-2 border-t pt-4">
         <Input
-          placeholder={isListening ? "Listening..." : "Ask a question about UNITEN..."}
+          placeholder={isListening ? "Listening..." : "Ask a question about your documents..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}

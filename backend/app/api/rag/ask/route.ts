@@ -15,7 +15,11 @@ const TOP_K = 5;
 
 export async function POST(request: Request) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
@@ -44,6 +48,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch this user's document IDs upfront so we only search their own knowledge base.
+    const { data: userDocs } = await supabase
+      .from("rag_documents")
+      .select("id")
+      .eq("admin_id", userId);
+    const userDocIds = new Set((userDocs ?? []).map((d) => d.id));
+
+    if (userDocIds.size === 0) {
+      return NextResponse.json({
+        answer: "You haven't uploaded any documents yet. Go to the Knowledge Base page to upload a document, then come back and ask questions about it.",
+        sources: [],
+      });
+    }
+
     const embeddingStr = `[${embedding.join(",")}]`;
     const { data: chunks, error } = await supabase.rpc("match_rag_chunks", {
       query_embedding: embeddingStr,
@@ -55,7 +73,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to search knowledge base" }, { status: 500 });
     }
 
-    let chunkList = (chunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[];
+    // Restrict to chunks from the current user's own documents.
+    let chunkList = ((chunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[])
+      .filter((c) => userDocIds.has(c.rag_document_id));
+
     const docIdsFromChunks = [...new Set(chunkList.map((c) => c.rag_document_id))];
     const { data: docs } = await supabase
       .from("rag_documents")
@@ -73,7 +94,7 @@ export async function POST(request: Request) {
 
     if (chunkList.length === 0) {
       return NextResponse.json({
-        answer: "I don't have relevant UNITEN documents indexed yet. Upload policy or course documents on the Documents page so I can answer from them.",
+        answer: "None of your uploaded documents seem to contain relevant information for this question. Try uploading more documents on the Knowledge Base page.",
         sources: [],
       });
     }

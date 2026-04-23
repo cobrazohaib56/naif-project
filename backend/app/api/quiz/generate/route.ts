@@ -35,6 +35,18 @@ export async function POST(request: Request) {
     let text: string;
 
     if (parsed.data.ragDocumentId) {
+      // Verify the document belongs to the requesting user.
+      const { data: ragDoc } = await supabase
+        .from("rag_documents")
+        .select("id")
+        .eq("id", parsed.data.ragDocumentId)
+        .eq("admin_id", userId)
+        .single();
+
+      if (!ragDoc) {
+        return NextResponse.json({ error: "RAG document not found" }, { status: 404 });
+      }
+
       const { data: chunks, error: chunksErr } = await supabase
         .from("rag_chunks")
         .select("chunk_text, created_at")

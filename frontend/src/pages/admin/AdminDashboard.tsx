@@ -10,7 +10,7 @@ export default function AdminDashboard() {
   });
 
   const stats = [
-    { label: "Total Students", value: data?.totalStudents ?? 0, icon: Users, color: "bg-blue-50 text-primary" },
+    { label: "Total Users", value: data?.totalStudents ?? 0, icon: Users, color: "bg-blue-50 text-primary" },
     { label: "Documents Uploaded", value: data?.totalDocuments ?? 0, icon: FileText, color: "bg-green-50 text-success" },
     { label: "Active Quizzes", value: data?.activeQuizzes ?? 0, icon: Brain, color: "bg-amber-50 text-amber-600" },
     { label: "RAG Documents Indexed", value: data?.ragDocumentsIndexed ?? 0, icon: FolderOpen, color: "bg-purple-50 text-purple-600" },
@@ -19,8 +19,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 max-w-6xl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-1">System overview</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Analytics</h1>
+        <p className="text-muted-foreground mt-1">Platform overview</p>
       </div>
 
       {isLoading ? (

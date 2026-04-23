@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireAdmin } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   try {
     const session = await requireAuth();
-    requireAdmin(session);
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
+    // Each user only sees and manages their own uploaded documents.
     const { data: docs, error } = await supabase
       .from("rag_documents")
       .select("id, title, content_type, department, course, uploaded_at")
+      .eq("admin_id", userId)
       .order("uploaded_at", { ascending: false });
 
     if (error) {
