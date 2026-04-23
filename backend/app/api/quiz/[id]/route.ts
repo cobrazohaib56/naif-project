@@ -9,14 +9,16 @@ export async function GET(
   try {
     const session = await requireAuth();
     const userId = (session.user as { id?: string }).id;
-    const role = (session.user as { role?: string }).role;
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
     const { searchParams } = new URL(request.url);
-    const isAdminView = searchParams.get("admin") === "true" && role === "admin";
+    // "admin" view exposes correct answers for the quiz manager UI. With RBAC
+    // removed, any authenticated user may request it (useful when editing
+    // their own quizzes).
+    const isAdminView = searchParams.get("admin") === "true";
     const modeTake = searchParams.get("mode") === "take" || !isAdminView;
 
     const { data: quiz, error: quizError } = await supabase

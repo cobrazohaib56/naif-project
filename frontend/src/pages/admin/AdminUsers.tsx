@@ -69,7 +69,7 @@ export default function AdminUsers() {
     <div className="space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">User Management</h1>
-        <p className="text-muted-foreground mt-1">Manage registered students</p>
+        <p className="text-muted-foreground mt-1">Manage registered users</p>
       </div>
 
       {isLoading ? (
@@ -80,7 +80,7 @@ export default function AdminUsers() {
             {users.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No students yet.</p>
+                <p>No users yet.</p>
               </div>
             ) : (
               <div className="divide-y">

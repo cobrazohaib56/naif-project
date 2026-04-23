@@ -8,7 +8,7 @@ export async function GET() {
     requireAdmin(session);
 
     const [usersRes, docsRes, quizzesRes, ragRes] = await Promise.all([
-      supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "student"),
+      supabase.from("users").select("id", { count: "exact", head: true }),
       supabase.from("documents").select("id", { count: "exact", head: true }),
       supabase.from("quizzes").select("id", { count: "exact", head: true }).eq("is_active", true),
       supabase.from("rag_documents").select("id", { count: "exact", head: true }),

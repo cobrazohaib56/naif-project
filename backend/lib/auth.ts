@@ -15,11 +15,9 @@ export async function requireAuth() {
   return session;
 }
 
-export function requireAdmin(session: { user?: { role?: string } }) {
-  if (session.user?.role !== "admin") {
-    throw new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+// Admin role was removed per product decision: every authenticated user has
+// full access. Kept as a no-op so existing call sites don't need to be touched
+// and so future re-introduction of RBAC has a single obvious hook.
+export function requireAdmin(_session: { user?: { role?: string } }) {
+  return;
 }

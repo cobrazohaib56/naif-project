@@ -23,9 +23,7 @@ export default function Login() {
     try {
       await api.signIn(email, password);
       await refetch();
-      const session = await api.getSession();
-      const role = (session?.user as { role?: string })?.role;
-      navigate(role === "admin" ? "/admin" : "/");
+      navigate("/");
     } catch (err) {
       setError(getAuthErrorMessage(err, "Login failed"));
     } finally {

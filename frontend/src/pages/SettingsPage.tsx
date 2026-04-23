@@ -80,10 +80,9 @@ const SettingsPage = () => {
             </Avatar>
             <div>
               <p className="font-semibold text-foreground">{displayName || "User"}</p>
-              <p className="text-sm text-muted-foreground">
-                {profile?.role === "admin" ? "Admin" : "Student"}
-                {memberSince && ` \u2022 Member since ${memberSince}`}
-              </p>
+              {memberSince && (
+                <p className="text-sm text-muted-foreground">Member since {memberSince}</p>
+              )}
             </div>
           </div>
           <Separator />

@@ -11,6 +11,7 @@ import NoteDetail from "./pages/NoteDetail";
 import Quizzes from "./pages/Quizzes";
 import QuizPlay from "./pages/QuizPlay";
 import QuizResults from "./pages/QuizResults";
+import SmartQuiz from "./pages/SmartQuiz";
 import AskAI from "./pages/AskAI";
 import WritingCoach from "./pages/WritingCoach";
 import Schedule from "./pages/Schedule";
@@ -49,6 +50,7 @@ const App = () => (
                     <Route path="/notes" element={<Notes />} />
                     <Route path="/notes/:id" element={<NoteDetail />} />
                     <Route path="/quizzes" element={<Quizzes />} />
+                    <Route path="/quizzes/smart" element={<SmartQuiz />} />
                     <Route path="/quizzes/:id/play" element={<QuizPlay />} />
                     <Route path="/quizzes/:id/results" element={<QuizResults />} />
                     <Route path="/ask-ai" element={<AskAI />} />

@@ -128,7 +128,7 @@ export async function POST(request: Request) {
           error:
             "Indexing failed — embeddings could not be generated. " +
             (firstError ? `Reason: ${firstError}. ` : "") +
-            "Verify HUGGINGFACE_API_KEY is valid and has Inference permission.",
+            "Verify the embedding provider credentials (JINA_API_KEY by default, or HUGGINGFACE_API_KEY when EMBEDDING_PROVIDER=huggingface).",
         },
         { status: 502 }
       );

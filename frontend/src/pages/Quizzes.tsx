@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Brain, Play } from "lucide-react";
+import { Search, Brain, Play, Sparkles } from "lucide-react";
 import api from "@/lib/api";
 
 const Quizzes = () => {
@@ -36,6 +36,28 @@ const Quizzes = () => {
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Quizzes</h1>
         <p className="text-muted-foreground mt-1">Test your knowledge with AI-generated quizzes</p>
       </div>
+
+      <Card className="shadow-sm border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-foreground">Smart Quiz</h2>
+              <p className="text-sm text-muted-foreground">
+                Instantly generate questions from any document in your knowledge base.
+              </p>
+            </div>
+          </div>
+          <Link to="/quizzes/smart" className="shrink-0">
+            <Button className="gap-2 w-full sm:w-auto">
+              <Sparkles className="h-4 w-4" />
+              Generate Quiz
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-md">

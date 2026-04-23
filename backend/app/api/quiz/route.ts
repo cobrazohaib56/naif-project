@@ -7,7 +7,6 @@ export async function GET(request: Request) {
   try {
     const session = await requireAuth();
     const userId = (session.user as { id?: string }).id;
-    const role = (session.user as { role?: string }).role;
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -19,7 +18,9 @@ export async function GET(request: Request) {
       .from("quizzes")
       .select("id, title, description, is_active, created_at, time_limit_minutes");
 
-    if (role !== "admin" || !admin) {
+    // Any authenticated user can see all quizzes in "manage" view (?admin=true);
+    // player view shows only published quizzes.
+    if (!admin) {
       query = query.eq("is_active", true);
     }
 

@@ -322,7 +322,7 @@ describe("api (extra coverage)", () => {
   });
 
   describe("generateQuiz", () => {
-    it("calls POST /api/quiz/generate with documentId and options", async () => {
+    it("calls POST /api/quiz/generate with ragDocumentId and options", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -331,13 +331,17 @@ describe("api (extra coverage)", () => {
         )
       );
 
-      const result = await api.generateQuiz("doc-1", undefined, 5, "mcq");
+      const result = await api.generateQuiz({
+        ragDocumentId: "rag-1",
+        numQuestions: 5,
+        questionType: "mcq",
+      });
 
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/quiz/generate"),
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ documentId: "doc-1", numQuestions: 5, questionType: "mcq" }),
+          body: JSON.stringify({ ragDocumentId: "rag-1", numQuestions: 5, questionType: "mcq" }),
         })
       );
       expect(result.questions).toHaveLength(1);

@@ -39,17 +39,17 @@ const navItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-const adminNavItems = [
-  { title: "Admin Dashboard", url: "/admin", icon: BarChart3 },
-  { title: "RAG Documents", url: "/admin/documents", icon: FolderOpen },
+// Former admin-only tools. With RBAC removed these are visible to everyone.
+const workspaceNavItems = [
+  { title: "Analytics", url: "/admin", icon: BarChart3 },
+  { title: "Knowledge Base", url: "/admin/documents", icon: FolderOpen },
   { title: "Quiz Manager", url: "/admin/quiz", icon: Brain },
-  { title: "User Management", url: "/admin/users", icon: Users },
+  { title: "Users", url: "/admin/users", icon: Users },
 ];
 
 export function AppSidebar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = (user as { role?: string })?.role === "admin";
   const displayName = user?.name || user?.email || "User";
   const initials = displayName.slice(0, 2).toUpperCase();
 
@@ -96,32 +96,28 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {isAdmin && (
-          <>
-            <Separator className="my-2" />
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu className="space-y-1">
-                  {adminNavItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild className="h-10 rounded-lg">
-                        <NavLink
-                          to={item.url}
-                          end={item.url === "/admin"}
-                          className="flex items-center gap-3 px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                          activeClassName="bg-sidebar-accent text-primary font-semibold"
-                        >
-                          <item.icon className="h-5 w-5" />
-                          <span>{item.title}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
+        <Separator className="my-2" />
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {workspaceNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-10 rounded-lg">
+                    <NavLink
+                      to={item.url}
+                      end={item.url === "/admin"}
+                      className="flex items-center gap-3 px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      activeClassName="bg-sidebar-accent text-primary font-semibold"
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4">

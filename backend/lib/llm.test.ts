@@ -21,12 +21,12 @@ vi.mock("@google/generative-ai", () => {
 });
 
 async function getGroqMock() {
-  const mod = await import("groq-sdk") as { __mockCreate: ReturnType<typeof vi.fn> };
+  const mod = (await import("groq-sdk")) as unknown as { __mockCreate: ReturnType<typeof vi.fn> };
   return mod.__mockCreate;
 }
 
 async function getGeminiMock() {
-  const mod = await import("@google/generative-ai") as { __mockGenerateContent: ReturnType<typeof vi.fn> };
+  const mod = (await import("@google/generative-ai")) as unknown as { __mockGenerateContent: ReturnType<typeof vi.fn> };
   return mod.__mockGenerateContent;
 }
 

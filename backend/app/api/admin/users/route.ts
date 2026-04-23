@@ -10,7 +10,6 @@ export async function GET() {
     const { data: users, error } = await supabase
       .from("users")
       .select("id, email, name, role, is_active, created_at")
-      .eq("role", "student")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -43,7 +42,6 @@ export async function PATCH(req: NextRequest) {
       .from("users")
       .update({ is_active })
       .eq("id", userId)
-      .eq("role", "student")
       .select("id, email, name, role, is_active, created_at")
       .single();
 

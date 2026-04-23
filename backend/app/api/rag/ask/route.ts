@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
     if (chunkList.length === 0) {
       return NextResponse.json({
-        answer: "I don't have relevant UNITEN documents indexed yet. An admin can upload policy and course documents for me to answer from.",
+        answer: "I don't have relevant UNITEN documents indexed yet. Upload policy or course documents on the Documents page so I can answer from them.",
         sources: [],
       });
     }
