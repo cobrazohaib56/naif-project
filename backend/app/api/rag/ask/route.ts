@@ -63,19 +63,24 @@ export async function POST(request: Request) {
     }
 
     const embeddingStr = `[${embedding.join(",")}]`;
-    const { data: chunks, error } = await supabase.rpc("match_rag_chunks", {
+    // Search only this user's indexed chunks (not global top-K then filter).
+    // Using match_rag_chunks + filter could return empty when the user's chunks
+    // are not among the most similar in the whole database.
+    const { data: chunks, error } = await supabase.rpc("match_rag_chunks_for_user", {
       query_embedding: embeddingStr,
+      owner_user_id: userId,
       match_count: TOP_K * 3,
     });
 
     if (error) {
-      console.error("match_rag_chunks RPC error:", error.message);
-      return NextResponse.json({ error: "Failed to search knowledge base" }, { status: 500 });
+      console.error("match_rag_chunks_for_user RPC error:", error.message);
+      return NextResponse.json(
+        { error: "Failed to search knowledge base. If this is a new deploy, run migration 005_match_rag_chunks_for_user.sql in Supabase." },
+        { status: 500 }
+      );
     }
 
-    // Restrict to chunks from the current user's own documents.
-    let chunkList = ((chunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[])
-      .filter((c) => userDocIds.has(c.rag_document_id));
+    let chunkList = (chunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[];
 
     const docIdsFromChunks = [...new Set(chunkList.map((c) => c.rag_document_id))];
     const { data: docs } = await supabase
@@ -94,7 +99,10 @@ export async function POST(request: Request) {
 
     if (chunkList.length === 0) {
       return NextResponse.json({
-        answer: "None of your uploaded documents seem to contain relevant information for this question. Try uploading more documents on the Knowledge Base page.",
+        answer:
+          "No indexed text was found in your knowledge base for this search. " +
+          "On the Knowledge Base page, confirm your documents show a chunk count above 0. " +
+          "If a document has 0 chunks, re-upload it or check that JINA_API_KEY (or HUGGINGFACE_API_KEY) is set on the server.",
         sources: [],
       });
     }

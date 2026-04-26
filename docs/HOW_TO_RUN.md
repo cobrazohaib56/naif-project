@@ -1,173 +1,192 @@
-# How to Run the AI Study Companion (Frontend & Backend)
+# How to Run the AI Study Companion (Local Development)
 
-Run the **backend** first, then the **frontend**. Both must be running for the app to work.
+Run the **backend first**, then the **frontend**. Both terminals must stay open.
+
+---
+
+## The "Cannot reach the backend" error (read this first)
+
+This message means the browser could not connect to the backend server at all — it is a **network problem, not a code problem**. The three causes are:
+
+1. **Backend is not running** — Start it with `npm run dev` inside the `backend/` folder (Step 2 below).
+2. **Wrong port in frontend env** — `frontend/.env` must contain `VITE_API_URL=http://localhost:3001`.
+3. **Wrong `NEXTAUTH_URL` in backend env** — Must be `http://localhost:3001` for local dev, not a Render/production URL.
+
+CORS is already configured to allow every `localhost` origin. If you fix the three points above and the backend is actually running, the error disappears.
 
 ---
 
 ## Prerequisites
 
-- **Node.js** 20+ (or Bun)
-- **npm** (or pnpm / yarn)
-- A **Supabase** project (for database and storage)
-- A **GROQ** API key (free at [console.groq.com](https://console.groq.com/keys)) or a **Gemini** API key
+| Tool | Version | Notes |
+|------|---------|-------|
+| Node.js | 20+ | `node -v` to check |
+| npm | 9+ | bundled with Node |
+| Supabase account | — | [supabase.com](https://supabase.com) — free tier is enough |
+| GROQ API key | — | [console.groq.com/keys](https://console.groq.com/keys) — free |
+| Jina AI API key | — | [jina.ai](https://jina.ai) — free (10 M tokens, no credit card) |
 
 ---
 
-## 1. Backend (Next.js API)
+## Step 1 — Supabase one-time setup
 
-### 1.1 Install dependencies
+1. Create a new Supabase project.
+2. In **SQL Editor**, paste and run the entire file:
+   `backend/supabase/migrations/001_initial_schema.sql`
+3. In **Storage → New bucket**, create two **private** buckets:
+   - `documents`
+   - `rag`
+4. In **Project Settings → API**, copy:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **service_role (secret)** → `SUPABASE_SERVICE_ROLE_KEY`
+
+---
+
+## Step 2 — Backend
+
+### 2.1 Install
 
 ```bash
-cd pixel-perfect-backend
+cd backend
 npm install
 ```
 
-### 1.2 Supabase setup
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. In the Supabase **SQL Editor**, run the entire contents of:
-   - `pixel-perfect-backend/supabase/migrations/001_initial_schema.sql`
-3. In **Storage**, create two **private** buckets:
-   - `documents` (for student notes)
-   - `rag` (for admin RAG documents)
-4. Copy your project **URL** and **service role key** from Project Settings → API.
-
-### 1.3 Environment variables
+### 2.2 Create `backend/.env.local`
 
 ```bash
-cd pixel-perfect-backend
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and set at least:
+Then edit `.env.local` and fill in every line marked **required**:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | `https://xxxx.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | `eyJ...` |
-| `DATABASE_URL` | PostgreSQL connection string (if needed) | `postgresql://postgres:...@db.xxx.supabase.co:5432/postgres` |
-| `NEXTAUTH_SECRET` | Random secret for sessions | Run: `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Backend URL (for auth callbacks) | `http://localhost:3001` |
-| `FRONTEND_URL` | Frontend URL (for CORS) | `http://localhost:5173` |
-| `LLM_PROVIDER` | AI provider: `groq` (default) or `gemini` | `groq` |
-| `GROQ_API_KEY` | GROQ API key (primary LLM) | Get from console.groq.com |
-| `GEMINI_API_KEY` | (Optional) Gemini fallback key | From Google AI Studio |
-| `HUGGINGFACE_API_KEY` | HuggingFace key for RAG embeddings | Required for Ask AI |
-| `SMTP_USER` | Gmail address for password reset emails | `you@gmail.com` |
-| `SMTP_PASS` | Gmail App Password (not your login password) | See [Google guide](https://support.google.com/accounts/answer/185833) |
+```env
+# ── Database (required) ─────────────────────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+DATABASE_URL=postgresql://postgres:YOUR_DB_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres
 
-### 1.4 Run the backend
+# ── Auth (required) ──────────────────────────────────────────────────────────
+# Generate secret: openssl rand -base64 32
+NEXTAUTH_SECRET=paste-the-generated-secret-here
+NEXTAUTH_URL=http://localhost:3001          # ← must be this exact value locally
+FRONTEND_URL=http://localhost:5173          # ← must match where the frontend runs
+
+# ── LLM — GROQ (required for all AI features) ───────────────────────────────
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_...                       # from console.groq.com/keys (free)
+
+# ── Embeddings — Jina AI (required for Ask AI + Smart Quiz) ─────────────────
+EMBEDDING_PROVIDER=jina
+JINA_API_KEY=jina_...                      # from jina.ai (free, no credit card)
+
+# ── Email (optional — only needed for forgot-password) ──────────────────────
+SMTP_USER=your-gmail@gmail.com
+SMTP_PASS=xxxx xxxx xxxx xxxx             # Gmail App Password, NOT your login password
+```
+
+> **NEXTAUTH_URL** must be `http://localhost:3001` when running locally.  
+> If this is set to a Render/production URL, the session cookies will fail and login will be broken.
+
+### 2.3 Start the backend
 
 ```bash
 npm run dev
 ```
 
-Backend runs at **http://localhost:3001**.
+You should see:
 
-### 1.5 First admin user
+```
+▲ Next.js ... ready on http://localhost:3001
+```
 
-1. Register a user from the frontend (see below) using a UNITEN email (e.g. `you@uniten.edu.my`).
-2. In Supabase **SQL Editor** run:
-   ```sql
-   UPDATE users SET role = 'admin' WHERE email = 'you@uniten.edu.my';
-   ```
-3. Log in again; you should be redirected to the admin dashboard.
+Leave this terminal open.
 
 ---
 
-## 2. Frontend (Vite + React)
+## Step 3 — Frontend
 
-### 2.1 Install dependencies
+### 3.1 Install
 
 ```bash
-cd pixel-perfect-frontend
+cd frontend
 npm install
 ```
 
-### 2.2 Environment variables
+### 3.2 Create `frontend/.env`
 
-Create or edit `.env` in the **pixel-perfect-frontend** folder:
-
-```env
-VITE_API_URL=http://localhost:3001
+```bash
+echo "VITE_API_URL=http://localhost:3001" > .env
 ```
 
-This must point to the backend URL (same as `NEXTAUTH_URL` when running locally).
+Or create the file manually with that single line.
 
-### 2.3 Run the frontend
+### 3.3 Start the frontend
 
 ```bash
 npm run dev
 ```
 
-Frontend runs at **http://localhost:5173** (or the port Vite prints).
+Vite will print the URL (usually `http://localhost:5173`). Open it in the browser.
 
 ---
 
-## 3. Using the app
+## Step 4 — First use
 
-1. Open **http://localhost:5173** in the browser.
-2. **Register** with a UNITEN email (`@uniten.edu.my`) and a password (min 8 characters).
-3. **Log in** with the same credentials.
-4. Students are redirected to the **Dashboard**; admins (after the SQL update above) are redirected to the **Admin** dashboard.
-5. Use the sidebar to open Notes, Quizzes, Ask AI, Writing Coach, Schedule, and (for admin) Admin sections.
-
----
-
-## 4. AI Provider Configuration
-
-The backend supports two LLM providers, selected via the `LLM_PROVIDER` env var:
-
-- **GROQ** (default) — Uses Llama 3.3 70B via GROQ's API. Set `GROQ_API_KEY` in `.env.local`. Get a key from [console.groq.com](https://console.groq.com/keys).
-- **Gemini** (fallback) — Set `LLM_PROVIDER=gemini` and `GEMINI_API_KEY` in `.env.local`.
-
-To switch providers, change `LLM_PROVIDER` and redeploy — no code changes needed.
-
-**Embeddings** (for RAG / Ask AI) always use HuggingFace, regardless of the LLM provider. Set `HUGGINGFACE_API_KEY` in `.env.local`.
+1. Open **http://localhost:5173**.
+2. Click **Register** and create an account.
+3. Log in — you will be taken to the Dashboard.
+4. Every feature (Ask AI, Knowledge Base, Quiz Manager, Writing Coach, etc.) is available to every logged-in user.
 
 ---
 
-## 5. Build for production
+## AI Features — what key does what
 
-**Backend:**
+| Feature | Key required | Where to get it |
+|---------|-------------|-----------------|
+| Summarization (My Notes) | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com/keys) |
+| Writing Coach | `GROQ_API_KEY` | same |
+| Quiz generation (Smart Quiz / Quiz Manager) | `GROQ_API_KEY` | same |
+| Ask AI answers | `GROQ_API_KEY` | same |
+| Ask AI document indexing | `JINA_API_KEY` | [jina.ai](https://jina.ai) |
+| Smart Quiz (picks context from docs) | both keys | — |
 
-```bash
-cd pixel-perfect-backend
-npm run build
-npm run start
-```
-
-**Frontend:**
-
-```bash
-cd pixel-perfect-frontend
-npm run build
-```
-
-Then serve the `dist` folder with any static host. Set `VITE_API_URL` to your production backend URL before building.
+All keys live in `backend/.env.local` — the browser never sees them.
 
 ---
 
-## Troubleshooting: "Failed to fetch" on login or signup
+## Troubleshooting
 
-If the app shows **"Failed to fetch"** (or the longer message about not reaching the backend) when you **Register** or **Sign in**:
+### "Cannot reach the backend" on login / register
 
-1. **Backend must be running** – In a terminal, from `pixel-perfect-backend` run `npm run dev`. You should see it listening on **http://localhost:3001**.
-2. **Restart the backend** after any CORS or env changes – The backend allows any `http://localhost:*` or `http://127.0.0.1:*` origin; a restart ensures the latest middleware is active.
-3. **Frontend env** – In `pixel-perfect-frontend/.env` set `VITE_API_URL=http://localhost:3001`. Restart the frontend (`npm run dev`) after changing `.env`.
-4. **Check the browser** – Open DevTools (F12) → **Console** for CORS or network errors; **Network** tab → click the failed request (e.g. `register` or `credentials`) to see status and response.
+Checklist in order:
 
-If you run the frontend on a different port (e.g. 8080), that is fine; CORS is configured to allow any localhost origin.
+- [ ] Is the backend running? Check the terminal — `npm run dev` should show `ready on http://localhost:3001`.
+- [ ] Is `NEXTAUTH_URL=http://localhost:3001` in `backend/.env.local`? Not a Render URL.
+- [ ] Is `VITE_API_URL=http://localhost:3001` in `frontend/.env`?
+- [ ] Did you restart both servers after changing any `.env` file? Vite and Next.js do not hot-reload env changes.
+- [ ] Open browser DevTools (F12) → **Network** tab → click the failing request → read the actual error response.
+
+### "Embedding service unavailable" in Ask AI
+
+- `JINA_API_KEY` is missing or wrong in `backend/.env.local`.
+- Get a free key at [jina.ai](https://jina.ai) and paste it, then restart the backend.
+
+### "AI could not generate a response" in quizzes / writing / summarization
+
+- `GROQ_API_KEY` is missing or wrong in `backend/.env.local`.
+- Get a free key at [console.groq.com/keys](https://console.groq.com/keys) and paste it, then restart the backend.
+
+### Login succeeds but page is blank / redirect loops
+
+- `NEXTAUTH_URL` is set to a production/Render URL. Change it to `http://localhost:3001` and restart the backend.
 
 ---
 
 ## Quick reference
 
-| What | Where | Command |
-|------|--------|---------|
-| Backend root | `pixel-perfect-backend` | `npm run dev` |
-| Frontend root | `pixel-perfect-frontend` | `npm run dev` |
-| Backend URL | — | http://localhost:3001 |
-| Frontend URL | — | http://localhost:5173 |
-| Backend env | `pixel-perfect-backend/.env.local` | Copy from `.env.example` |
-| Frontend env | `pixel-perfect-frontend/.env` | `VITE_API_URL=http://localhost:3001` |
+| What | Folder | Command | Default URL |
+|------|--------|---------|------------|
+| Backend | `backend/` | `npm run dev` | http://localhost:3001 |
+| Frontend | `frontend/` | `npm run dev` | http://localhost:5173 |
+| Backend env | `backend/.env.local` | copy from `.env.example` | — |
+| Frontend env | `frontend/.env` | `VITE_API_URL=http://localhost:3001` | — |
