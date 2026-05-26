@@ -1,27 +1,58 @@
 import nodemailer from "nodemailer";
 
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
 const APP_NAME = "AI Study Companion";
 
 let _transporter: nodemailer.Transporter | null = null;
+let _transporterKey: string | null = null;
 
-function getTransporter(): nodemailer.Transporter | null {
-  if (!SMTP_USER || !SMTP_PASS) {
+function getSmtpConfig(): { user: string; pass: string; rawPassLength: number } | null {
+  const user = process.env.SMTP_USER?.trim();
+  const rawPass = process.env.SMTP_PASS?.trim();
+  const pass = rawPass?.replace(/\s+/g, "");
+
+  if (!user || !pass) {
     console.warn("[email] SMTP_USER or SMTP_PASS env var is missing — email will not be sent");
     return null;
   }
-  if (_transporter) return _transporter;
 
-  console.log(`[email] Creating SMTP transporter: smtp.gmail.com:587, user=${SMTP_USER}, pass length=${SMTP_PASS.length}`);
+  return { user, pass, rawPassLength: rawPass?.length ?? 0 };
+}
+
+export function getEmailConfigStatus() {
+  const user = process.env.SMTP_USER?.trim() ?? "";
+  const rawPass = process.env.SMTP_PASS?.trim() ?? "";
+  const normalizedPass = rawPass.replace(/\s+/g, "");
+
+  return {
+    SMTP_USER: user ? "SET" : "MISSING",
+    SMTP_PASS: normalizedPass
+      ? `SET (raw length: ${rawPass.length}, normalized length: ${normalizedPass.length})`
+      : "MISSING",
+  };
+}
+
+function getTransporter(): { transporter: nodemailer.Transporter; from: string } | null {
+  const config = getSmtpConfig();
+  if (!config) return null;
+
+  const transporterKey = `${config.user}:${config.pass}`;
+  if (_transporter && _transporterKey === transporterKey) {
+    return { transporter: _transporter, from: config.user };
+  }
+
+  console.log(
+    `[email] Creating SMTP transporter: smtp.gmail.com:587, user=${config.user}, ` +
+      `pass length=${config.pass.length}${config.rawPassLength !== config.pass.length ? ` (normalized from ${config.rawPassLength})` : ""}`
+  );
 
   _transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
+    requireTLS: true,
     auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
+      user: config.user,
+      pass: config.pass,
     },
     tls: {
       rejectUnauthorized: false,
@@ -30,19 +61,20 @@ function getTransporter(): nodemailer.Transporter | null {
     greetingTimeout: 10000,
     socketTimeout: 15000,
   });
+  _transporterKey = transporterKey;
 
-  return _transporter;
+  return { transporter: _transporter, from: config.user };
 }
 
 async function sendMail(to: string, subject: string, html: string): Promise<boolean> {
-  const transporter = getTransporter();
-  if (!transporter) return false;
+  const mailer = getTransporter();
+  if (!mailer) return false;
 
   console.log(`[email] Sending "${subject}" to ${to}...`);
 
   try {
-    const info = await transporter.sendMail({
-      from: `"${APP_NAME}" <${SMTP_USER}>`,
+    const info = await mailer.transporter.sendMail({
+      from: `"${APP_NAME}" <${mailer.from}>`,
       to,
       subject,
       html,
@@ -51,6 +83,7 @@ async function sendMail(to: string, subject: string, html: string): Promise<bool
     return true;
   } catch (err: unknown) {
     _transporter = null;
+    _transporterKey = null;
     const errMsg = err instanceof Error ? err.message : String(err);
     const errCode = (err as { code?: string })?.code ?? "unknown";
     const errResp = (err as { responseCode?: number })?.responseCode;

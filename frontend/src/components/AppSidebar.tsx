@@ -10,7 +10,6 @@ import {
   LogOut,
   GraduationCap,
   FolderOpen,
-  Users,
   BarChart3,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -44,7 +43,6 @@ const workspaceNavItems = [
   { title: "Analytics", url: "/admin", icon: BarChart3 },
   { title: "Knowledge Base", url: "/admin/documents", icon: FolderOpen },
   { title: "Quiz Manager", url: "/admin/quiz", icon: Brain },
-  { title: "Users", url: "/admin/users", icon: Users },
 ];
 
 export function AppSidebar() {

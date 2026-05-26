@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseConnectionError, supabase } from "@/lib/supabase";
 import { sendWelcomeEmail } from "@/lib/email";
 
 const registerSchema = z.object({
@@ -25,11 +25,20 @@ export async function POST(request: Request) {
     const name = parsed.data.name?.trim() || null;
     const normalizedEmail = email.toLowerCase().trim();
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("users")
       .select("id")
       .eq("email", normalizedEmail)
       .maybeSingle();
+
+    if (existingError) {
+      console.error("[register] Supabase lookup error:", existingError.message);
+      const dbConnectionError = getSupabaseConnectionError(existingError);
+      return NextResponse.json(
+        { error: dbConnectionError ?? "Failed to check existing account" },
+        { status: dbConnectionError ? 503 : 500 }
+      );
+    }
 
     if (existing) {
       return NextResponse.json(
@@ -59,9 +68,10 @@ export async function POST(request: Request) {
           { status: 409 }
         );
       }
+      const dbConnectionError = error ? getSupabaseConnectionError(error) : null;
       return NextResponse.json(
-        { error: error?.message ?? "Failed to create account" },
-        { status: 500 }
+        { error: dbConnectionError ?? error?.message ?? "Failed to create account" },
+        { status: dbConnectionError ? 503 : 500 }
       );
     }
 
@@ -92,6 +102,13 @@ export async function POST(request: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[register] Unexpected error:", msg);
+    const dbConnectionError = getSupabaseConnectionError(e);
+    if (dbConnectionError) {
+      return NextResponse.json(
+        { error: dbConnectionError },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: "Registration failed. Please try again." },
       { status: 500 }

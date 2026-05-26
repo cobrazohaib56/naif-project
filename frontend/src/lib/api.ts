@@ -35,6 +35,25 @@ async function handleResponse<T>(res: Response): Promise<T> {
   }
 }
 
+function getSignInErrorMessage(data: unknown): string | null {
+  const error = typeof data === "object" && data !== null ? (data as { error?: string; code?: string }).error : undefined;
+  const code = typeof data === "object" && data !== null ? (data as { error?: string; code?: string }).code : undefined;
+
+  if (error === "CredentialsSignin" || code === "credentials" || error === "CallbackRouteError") {
+    return "Invalid email or password";
+  }
+  if (error) return error;
+  return null;
+}
+
+function parseJsonOrNull(text: string): unknown | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchWithCredentials(
   path: string,
   options: RequestInit = {}
@@ -82,10 +101,17 @@ export const api = {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error((data as { error?: string }).error || "Invalid email or password");
+      throw new Error(getSignInErrorMessage(data) || "Invalid email or password");
     }
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) return res.json();
+    const text = await res.text();
+    if (text) {
+      const data = parseJsonOrNull(text);
+      if (data) {
+        const message = getSignInErrorMessage(data);
+        if (message) throw new Error(message);
+        return data;
+      }
+    }
     return {} as { url?: string };
   },
 

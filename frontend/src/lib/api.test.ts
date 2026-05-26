@@ -61,6 +61,40 @@ describe("api", () => {
     });
   });
 
+  describe("signIn", () => {
+    it("throws a clear message for wrong credentials", async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: "csrf" })))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: "CredentialsSignin", code: "credentials" }))
+        );
+
+      await expect(api.signIn("b@uniten.edu.my", "wrong-password")).rejects.toThrow(
+        "Invalid email or password"
+      );
+    });
+
+    it("throws a clear message when NextAuth rejects with a non-ok response", async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: "csrf" })))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: "CallbackRouteError" }), { status: 401 })
+        );
+
+      await expect(api.signIn("b@uniten.edu.my", "wrong-password")).rejects.toThrow(
+        "Invalid email or password"
+      );
+    });
+
+    it("treats a successful HTML redirect response as signed in", async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: "csrf" })))
+        .mockResolvedValueOnce(new Response("<!DOCTYPE html><html></html>"));
+
+      await expect(api.signIn("b@uniten.edu.my", "password123")).resolves.toEqual({});
+    });
+  });
+
   describe("getNotes", () => {
     it("calls GET /api/notes and returns array", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(

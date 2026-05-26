@@ -28,3 +28,9 @@ AS $$
   ORDER BY c.embedding <=> query_embedding
   LIMIT match_count;
 $$;
+
+-- PostgREST must be allowed to call this via the Data API
+GRANT EXECUTE ON FUNCTION public.match_rag_chunks_for_user(vector(384), uuid, integer) TO anon, authenticated, service_role;
+
+-- Bust PostgREST schema cache so the new function appears in API immediately
+NOTIFY pgrst, 'reload schema';

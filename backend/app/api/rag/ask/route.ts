@@ -63,24 +63,40 @@ export async function POST(request: Request) {
     }
 
     const embeddingStr = `[${embedding.join(",")}]`;
-    // Search only this user's indexed chunks (not global top-K then filter).
-    // Using match_rag_chunks + filter could return empty when the user's chunks
-    // are not among the most similar in the whole database.
-    const { data: chunks, error } = await supabase.rpc("match_rag_chunks_for_user", {
+    // Prefer per-user vector search (migration 005). If the RPC is missing, not
+    // granted, or PostgREST schema cache is stale, fall back to global search
+    // with a large match_count then filter to this user (best-effort).
+    const { data: userChunks, error: userRpcError } = await supabase.rpc("match_rag_chunks_for_user", {
       query_embedding: embeddingStr,
       owner_user_id: userId,
       match_count: TOP_K * 3,
     });
 
-    if (error) {
-      console.error("match_rag_chunks_for_user RPC error:", error.message);
-      return NextResponse.json(
-        { error: "Failed to search knowledge base. If this is a new deploy, run migration 005_match_rag_chunks_for_user.sql in Supabase." },
-        { status: 500 }
-      );
-    }
+    let chunkList: { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[];
 
-    let chunkList = (chunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[];
+    if (userRpcError) {
+      console.error(
+        "[rag/ask] match_rag_chunks_for_user failed —",
+        userRpcError.message,
+        userRpcError.code,
+        (userRpcError as { details?: string }).details ?? ""
+      );
+      const { data: globalChunks, error: globalError } = await supabase.rpc("match_rag_chunks", {
+        query_embedding: embeddingStr,
+        match_count: 200,
+      });
+      if (globalError) {
+        console.error("[rag/ask] match_rag_chunks fallback failed:", globalError.message);
+        return NextResponse.json(
+          { error: `Search failed: ${globalError.message}` },
+          { status: 500 }
+        );
+      }
+      chunkList = ((globalChunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[])
+        .filter((c) => userDocIds.has(c.rag_document_id));
+    } else {
+      chunkList = (userChunks ?? []) as { id: string; rag_document_id: string; chunk_text: string; metadata?: { page?: number } }[];
+    }
 
     const docIdsFromChunks = [...new Set(chunkList.map((c) => c.rag_document_id))];
     const { data: docs } = await supabase

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth, requireAdmin } from "@/lib/auth";
-import { sendCustomEmail } from "@/lib/email";
+import { getEmailConfigStatus, sendCustomEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -14,16 +14,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Provide a valid 'to' email" }, { status: 400 });
     }
 
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    const smtpUser = process.env.SMTP_USER?.trim();
+    const smtpStatus = getEmailConfigStatus();
 
-    if (!smtpUser || !smtpPass) {
+    if (smtpStatus.SMTP_USER === "MISSING" || smtpStatus.SMTP_PASS === "MISSING") {
       return NextResponse.json({
         error: "SMTP not configured",
-        details: {
-          SMTP_USER: smtpUser ? "SET" : "MISSING",
-          SMTP_PASS: smtpPass ? "SET (length: " + smtpPass.length + ")" : "MISSING",
-        },
+        details: smtpStatus,
       }, { status: 500 });
     }
 
