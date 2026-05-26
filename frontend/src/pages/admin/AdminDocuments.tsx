@@ -3,7 +3,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Upload, FileText, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -30,6 +41,16 @@ export default function AdminDocuments() {
       setCourse("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteAdminRagDocument(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-rag-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
+      toast.success("Document deleted.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
 
   const handleUpload = () => fileInputRef.current?.click();
@@ -109,6 +130,37 @@ export default function AdminDocuments() {
                       {doc.chunksCount} chunks • {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : ""}
                     </p>
                   </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-destructive hover:text-destructive"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This removes "{doc.title}" from the Knowledge Base and deletes its indexed chunks.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => deleteMutation.mutate(doc.id)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </CardContent>
               </Card>
             ))}

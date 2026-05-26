@@ -297,6 +297,23 @@ describe("api (extra coverage)", () => {
       expect(result[0].title).toBe("Policy Doc");
       expect(result[0].chunksCount).toBe(12);
     });
+
+    it("calls DELETE /api/admin/rag/documents with document id", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "ok" }))
+      );
+
+      const result = await api.deleteAdminRagDocument("r1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/rag/documents?id=r1"),
+        expect.objectContaining({
+          credentials: "include",
+          method: "DELETE",
+        })
+      );
+      expect(result.status).toBe("ok");
+    });
   });
 
   describe("addQuizQuestions", () => {

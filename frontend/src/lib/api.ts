@@ -376,6 +376,13 @@ export const api = {
     return handleResponse<{ id: string; title: string; content_type?: string; department?: string; course?: string; uploaded_at: string; chunksCount: number }[]>(res);
   },
 
+  async deleteAdminRagDocument(id: string) {
+    const res = await fetchWithCredentials(`/api/admin/rag/documents?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    return handleResponse<{ status: string }>(res);
+  },
+
   async uploadRagDocument(file: File, title?: string, department?: string, course?: string) {
     const form = new FormData();
     form.append("file", file);

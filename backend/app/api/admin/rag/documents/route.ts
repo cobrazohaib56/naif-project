@@ -37,3 +37,55 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to list documents" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await requireAuth();
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Document id is required" }, { status: 400 });
+    }
+
+    const { data: doc, error: docError } = await supabase
+      .from("rag_documents")
+      .select("id, file_path")
+      .eq("id", id)
+      .eq("admin_id", userId)
+      .single();
+
+    if (docError || !doc) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    const { error: deleteError } = await supabase
+      .from("rag_documents")
+      .delete()
+      .eq("id", id)
+      .eq("admin_id", userId);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    if (doc.file_path) {
+      const { error: storageError } = await supabase.storage
+        .from("rag")
+        .remove([doc.file_path]);
+
+      if (storageError) {
+        console.error("[rag/documents] Failed to remove storage file:", storageError.message);
+      }
+    }
+
+    return NextResponse.json({ status: "ok" });
+  } catch (e) {
+    if (e instanceof Response) return e;
+    return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
+  }
+}
